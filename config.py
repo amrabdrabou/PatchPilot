@@ -1,0 +1,11 @@
+MODEL_NAME = "gpt-4.1-mini"
+
+MAX_STEPS = 5
+MAX_TOOL_CALLS = 3
+
+COMMAND_TIMEOUT_SECONDS = 10
+MAX_COMMAND_OUTPUT_CHARS = 3000
+
+PROJECT_DIR = "test_project"
+
+COMMAND_LOG_FILE = "logs/commands.log"
