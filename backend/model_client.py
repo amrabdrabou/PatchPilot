@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-from config import MODEL_NAME
+from backend.config import MODEL_NAME
 
 
 load_dotenv()

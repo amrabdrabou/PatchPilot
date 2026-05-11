@@ -19,6 +19,7 @@ def parse_action(text):
     tool_name = match.group(1)
     raw_args = match.group(2).strip()
 
+    # No arguments, for example: Action: git_diff()
     if raw_args == "":
         return tool_name, []
 

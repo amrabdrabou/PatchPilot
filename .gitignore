@@ -1,4 +1,25 @@
-__pycache__/
-*.pyc
+# Local secrets
 .env
+
+# Python cache and test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Python virtual environments
+.venv/
+venv/
+
+# Runtime logs
 logs/
+backend/logs/
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+
+# Local editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

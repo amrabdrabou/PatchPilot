@@ -1,11 +1,13 @@
+# Implements safe file, command, and git tools for the agent sandbox.
 from pathlib import Path
 from datetime import datetime
-from config import (
+from backend.config import (
     PROJECT_DIR,
     COMMAND_TIMEOUT_SECONDS,
     MAX_COMMAND_OUTPUT_CHARS,
     COMMAND_LOG_FILE,
 )
+import shlex
 import subprocess
 
 BASE_DIR = Path(PROJECT_DIR).resolve()
@@ -18,7 +20,9 @@ def safe_path(path: str) -> Path:
     """
     requested_path = (BASE_DIR / path).resolve()
 
-    if not str(requested_path).startswith(str(BASE_DIR)):
+    try:
+        requested_path.relative_to(BASE_DIR)
+    except ValueError:
         raise ValueError("Access denied: path is outside the allowed project folder.")
 
     return requested_path
@@ -61,66 +65,105 @@ def read_file(path: str) -> str:
     return file_path.read_text(encoding="utf-8")
 
 
-    import subprocess
+ALLOWED_GIT_SUBCOMMANDS = {
+    "branch",
+    "diff",
+    "log",
+    "show",
+    "status",
+}
 
 
-DANGEROUS_COMMANDS = [
-    "rm ",
-    "rm -",
-    "sudo",
-    "shutdown",
-    "reboot",
-    "mkfs",
-    "dd ",
-    ":(){",
-    "chmod -R",
-    "chown -R",
-    "curl ",
-    "wget ",
-    "pip install",
-    "npm install",
-]
-
-
-def is_safe_command(command: str) -> bool:
+def build_allowed_command(command: str) -> tuple[list[str] | None, str | None]:
     """
-    Basic safety check for dangerous bash commands.
-    This is not perfect, but it blocks many obvious dangerous commands.
+    Parse a command and return argv only for approved command shapes.
     """
-    lowered = command.lower()
+    try:
+        parts = shlex.split(command)
+    except ValueError as error:
+        return None, f"Could not parse command: {error}"
 
-    for dangerous in DANGEROUS_COMMANDS:
-        if dangerous in lowered:
-            return False
+    if not parts:
+        return None, "Empty commands are not allowed."
 
-    return True
+    program = parts[0].lower()
+
+    if program in {"python", "py"}:
+        return build_allowed_python_command(parts)
+
+    if program == "pytest":
+        return parts, None
+
+    if program == "git":
+        return build_allowed_git_command(parts)
+
+    return None, (
+        "Command is not allowed. Allowed commands are: "
+        "python <script.py>, python -m pytest, py <script.py>, pytest, "
+        "and read-only git commands."
+    )
+
+
+def build_allowed_python_command(parts: list[str]) -> tuple[list[str] | None, str | None]:
+    """
+    Allow Python scripts and pytest module runs, but not arbitrary inline code.
+    """
+    if len(parts) < 2:
+        return None, "Python commands must run a script or '-m pytest'."
+
+    if parts[1] == "-m":
+        if len(parts) >= 3 and parts[2] == "pytest":
+            return parts, None
+
+        return None, "Only 'python -m pytest' is allowed for module execution."
+
+    if parts[1] in {"-c", "-"}:
+        return None, "Inline Python execution is not allowed."
+
+    script_path = safe_path(parts[1])
+
+    if script_path.suffix != ".py":
+        return None, "Python commands may only run .py files."
+
+    if not script_path.exists():
+        return None, f"Python script does not exist: {parts[1]}"
+
+    return parts, None
+
+
+def build_allowed_git_command(parts: list[str]) -> tuple[list[str] | None, str | None]:
+    """
+    Allow only read-only git commands for inspection.
+    """
+    if len(parts) < 2:
+        return None, "Git commands must include a subcommand."
+
+    subcommand = parts[1].lower()
+
+    if subcommand not in ALLOWED_GIT_SUBCOMMANDS:
+        return None, f"Git subcommand is not allowed: {parts[1]}"
+
+    return parts, None
 
 
 def run_bash(command: str) -> str:
     """
     Run a bash command safely inside the project folder.
-    Requires human confirmation before execution.
+    Frontend approval happens before this function is called.
     """
 
-    if not is_safe_command(command):
+    command_args, error = build_allowed_command(command)
+
+    if error:
         log_command(command, "BLOCKED")
-        return f"Blocked dangerous command: {command}"
-
-    print("\nThe agent wants to run this command:")
-    print(command)
-
-    choice = input("Allow this command? (y/n): ")
-
-    if choice.lower() != "y":
-        log_command(command, "REJECTED")
-        return "Command rejected by user."
+        return f"Blocked command: {error}"
 
     try:
         log_command(command, "ALLOWED")
 
         result = subprocess.run(
-            command,
-            shell=True,
+            command_args,
+            shell=False,
             cwd=BASE_DIR,
             capture_output=True,
             text=True,
@@ -206,21 +249,18 @@ def edit_file(path: str, old_text: str, new_text: str) -> str:
     print("\nWith this text:")
     print(new_text)
 
-    choice = input("Allow this edit? (y/n): ")
-
-    if choice.lower() != "y":
-        return "Edit rejected by user."
-
     updated_content = content.replace(old_text, new_text, 1)
 
     file_path.write_text(updated_content, encoding="utf-8")
 
     return f"Edited {path}: replaced one occurrence."
 
-def git_diff() -> str:
+def git_diff(*args) -> str:
     """
     Show git diff for the project folder.
     This helps review what the agent changed.
+
+    Accepts ignored args so Action: git_diff("") does not crash.
     """
     try:
         result = subprocess.run(
@@ -244,3 +284,33 @@ def git_diff() -> str:
 
     except subprocess.TimeoutExpired:
         return "Error: git diff command timed out."
+
+def git_status(*args) -> str:
+    """
+    Show git status for the project folder.
+    This helps see which files are changed, staged, or untracked.
+
+    Accepts ignored args so Action: git_status("") does not crash.
+    """
+    try:
+        result = subprocess.run(
+            "git status --short",
+            shell=True,
+            cwd=BASE_DIR,
+            capture_output=True,
+            text=True,
+            timeout=COMMAND_TIMEOUT_SECONDS,
+        )
+
+        output = result.stdout
+
+        if result.stderr:
+            output += "\nERROR:\n" + result.stderr
+
+        if not output.strip():
+            return "Working tree clean. No changed files."
+
+        return output[:MAX_COMMAND_OUTPUT_CHARS]
+
+    except subprocess.TimeoutExpired:
+        return "Error: git status command timed out."

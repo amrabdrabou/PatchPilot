@@ -1,8 +1,7 @@
-from prompts import build_system_prompt
-from model_client import ask_model
-from tool_registry import run_tool
-from parser import parse_action
-
+from backend.prompts import build_system_prompt
+from backend.model_client import ask_model
+from backend.tool_registry import run_tool
+from backend.parser import parse_action
 
 
 def run_agent(user_task, max_steps=5, max_tool_calls=3):
