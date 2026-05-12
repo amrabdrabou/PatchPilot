@@ -40,8 +40,10 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 - `frontend/` contains the Vite/React interface:
   - `App.jsx` composes the page.
   - `api/agentApi.js` contains backend HTTP calls.
-  - `hooks/useAgentHub.js` owns UI state, streaming, `/clear`, approvals, and progress.
+  - `hooks/useAgentHub.js` owns UI state, `/clear`, approvals, and progress.
   - `utils/agentStream.js` formats stream events and final answers.
+  - `utils/localCommands.js` owns local slash-command responses.
+  - `utils/readAgentStream.js` reads backend SSE chunks and dispatches parsed stream events.
   - `utils/messages.js` handles local message IDs and timestamps.
   - `components/` contains focused UI sections.
 - `test_project/` is the sandbox folder PatchPilot can inspect and modify.
@@ -166,10 +168,13 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
    - Done: `/help`
    - Done: `/status`
    - Done: `/clear`
-22. Later add frontend tests for local commands, stream rendering, and approval controls.
-23. Later add persistent storage with SQLite or JSON so messages survive backend restarts.
-24. Later scope backend state by session/client before multi-user or class-hub use.
-25. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
+22. Done: Split frontend SSE stream reading out of `useAgentHub.js`.
+23. Done: Split local slash-command responses out of `useAgentHub.js`.
+24. Done: Add Vitest frontend tests for local command and SSE stream reader utilities.
+25. Later add frontend tests for stream rendering and approval controls.
+26. Later add persistent storage with SQLite or JSON so messages survive backend restarts.
+27. Later scope backend state by session/client before multi-user or class-hub use.
+28. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
 
 ## Assignment Fit
 

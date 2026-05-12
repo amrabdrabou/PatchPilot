@@ -34,12 +34,9 @@ function MessageCard({ message, agentMap }) {
 
   const isTrace = message.type === "agent_trace";
   const isFinalTrace = message.type === "agent_trace_final";
-  const isFinal = message.type === "agent_final";
   const isUser = message.type === "user_task";
 
-  const textColor = isFinal
-    ? "text-[#dce3f0]"
-    : isTrace || isFinalTrace
+  const textColor = isTrace || isFinalTrace
     ? "text-[#bac9cc]/65"
     : isUser
     ? "text-[#c3f5ff]"
@@ -117,10 +114,6 @@ function MessageCard({ message, agentMap }) {
                 </div>
               </div>
             )}
-          </div>
-        ) : isFinal ? (
-          <div className={`min-w-0 whitespace-pre-wrap text-sm leading-6 ${textColor}`}>
-            {message.text}
           </div>
         ) : isUser ? (
           <div className={`min-w-0 whitespace-pre-wrap font-mono text-sm uppercase tracking-wider leading-6 ${textColor}`}>

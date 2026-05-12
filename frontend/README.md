@@ -32,11 +32,14 @@ Verify from this folder:
 
 ```bash
 npm.cmd run lint
+npm.cmd run test
 npm.cmd run build
 ```
+
+`npm.cmd run test` uses Vitest. The current tests cover pure frontend utilities; React component and hook tests should use Vitest with React Testing Library.
 
 `npm.cmd run build` runs the Vite production build and writes generated files to `dist/`.
 
 ## Later Tests
 
-Later add frontend tests for local commands like `/help`, `/status`, and `/clear`, plus stream rendering and approval controls.
+Later add frontend tests for stream rendering and approval controls.

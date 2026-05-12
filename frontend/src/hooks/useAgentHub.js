@@ -8,12 +8,8 @@ import {
   startAgentRun,
   stopAgentRun,
 } from "../api/agentApi";
-import {
-  buildPendingApproval,
-  extractFinalAnswer,
-  formatTraceLine,
-  isTraceEvent,
-} from "../utils/agentStream";
+import { getLocalCommand, handleLocalCommand } from "../utils/localCommands";
+import { readAgentStream } from "../utils/readAgentStream";
 import { createLocalMessageId, createMessageTimestamp } from "../utils/messages";
 
 const EMPTY_LIMITS = {
@@ -27,15 +23,6 @@ const EMPTY_PROGRESS = {
   stepsUsed: 0,
   toolCallsUsed: 0,
 };
-
-const HELP_MESSAGE = [
-  "Available commands:",
-  "/help - Show local UI commands.",
-  "/status - Show current run status and limits.",
-  "/clear - Clear the message stream.",
-  "",
-  "PatchPilot can inspect files, search text, run allowlisted commands, show git status/diff, and edit sandbox files after approval.",
-].join("\n");
 
 export function useAgentHub() {
   const [agentRunning, setAgentRunning] = useState(false);
@@ -146,106 +133,29 @@ export function useAgentHub() {
     []
   );
 
-  const readAgentStream = useCallback(
-    async (response, traceId) => {
-      if (!response.ok) {
-        throw new Error(`Agent stream failed with status ${response.status}`);
-      }
-
-      if (!response.body) {
-        throw new Error("No response stream received.");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-
-      let buffer = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop();
-
-        for (const part of parts) {
-          if (!part.startsWith("data: ")) continue;
-
-          let event;
-
-          try {
-            event = JSON.parse(part.replace("data: ", ""));
-          } catch (error) {
-            console.error(error);
-            appendMessageText(traceId, "\n[ERROR]\nMalformed stream event skipped.\n");
-            continue;
-          }
-
-          if (event.run_id) {
-            setCurrentRunId(event.run_id);
-          }
-
-          updateProgressFromEvent(event);
-
-          if (isTraceEvent(event)) {
-            appendMessageText(traceId, formatTraceLine(event));
-          }
-
-          if (event.type === "approval_required") {
-            setPendingApproval(buildPendingApproval(event, traceId));
-          }
-
-          if (event.type === "approval_decision") {
-            setPendingApproval(null);
-          }
-
-          if (event.type === "final" || event.type === "stopped") {
-            const label = event.type === "final" ? "FINAL ANSWER" : "STOPPED";
-
-            finishTraceMessage(traceId, extractFinalAnswer(event.content), label);
-            setPendingApproval(null);
-            setCurrentRunId(null);
-          }
-        }
-      }
-    },
+  const streamHandlers = useMemo(
+    () => ({
+      appendMessageText,
+      finishTraceMessage,
+      setCurrentRunId,
+      setPendingApproval,
+      updateProgressFromEvent,
+    }),
     [appendMessageText, finishTraceMessage, updateProgressFromEvent]
+  );
+
+  const readAgentResponse = useCallback(
+    async (response, traceId) => {
+      await readAgentStream(response, traceId, streamHandlers);
+    },
+    [streamHandlers]
   );
 
   const sendMessage = useCallback(async () => {
     if (!draft.trim() || agentRunning) return;
 
     const task = draft.trim();
-    const command = task.toLowerCase();
-
-    if (command === "/help") {
-      setDraft("");
-      addLocalMessage("backend", HELP_MESSAGE, "message");
-      setStatus("Help shown");
-      return;
-    }
-
-    if (command === "/status") {
-      setDraft("");
-      addLocalMessage(
-        "backend",
-        [
-          `Status: ${status}`,
-          `Run state: ${agentRunning ? "running" : runProgress.status}`,
-          `Steps: ${runProgress.stepsUsed} / ${limits.maxSteps}`,
-          `Tool calls: ${runProgress.toolCallsUsed} / ${limits.maxToolCalls}`,
-          `Model calls: ${runProgress.modelCalls}`,
-          `Pending approval: ${pendingApproval ? "yes" : "no"}`,
-          `Messages: ${messages.length}`,
-        ].join("\n"),
-        "message"
-      );
-      setStatus("Status shown");
-      return;
-    }
+    const command = getLocalCommand(task);
 
     if (command === "/clear") {
       setDraft("");
@@ -270,6 +180,22 @@ export function useAgentHub() {
       return;
     }
 
+    if (
+      handleLocalCommand(command, {
+        addLocalMessage,
+        agentRunning,
+        limits,
+        messageCount: messages.length,
+        pendingApproval,
+        runProgress,
+        setDraft,
+        setStatus,
+        status,
+      })
+    ) {
+      return;
+    }
+
     const traceId = createLocalMessageId();
 
     setDraft("");
@@ -289,7 +215,7 @@ export function useAgentHub() {
 
     try {
       const response = await startAgentRun(task);
-      await readAgentStream(response, traceId);
+      await readAgentResponse(response, traceId);
       setStatus("Agent waiting or finished");
     } catch (error) {
       console.error(error);
@@ -305,7 +231,7 @@ export function useAgentHub() {
     limits,
     messages.length,
     pendingApproval,
-    readAgentStream,
+    readAgentResponse,
     runProgress,
     status,
     updateMessage,
@@ -342,7 +268,7 @@ export function useAgentHub() {
         pendingApproval.approvalId
       );
 
-      await readAgentStream(response, pendingApproval.traceId);
+      await readAgentResponse(response, pendingApproval.traceId);
       setStatus("Agent waiting or finished");
     } catch (error) {
       console.error(error);
@@ -350,7 +276,7 @@ export function useAgentHub() {
     } finally {
       setAgentRunning(false);
     }
-  }, [pendingApproval, readAgentStream]);
+  }, [pendingApproval, readAgentResponse]);
 
   const rejectTool = useCallback(async () => {
     if (!pendingApproval) return;
@@ -364,7 +290,7 @@ export function useAgentHub() {
         pendingApproval.approvalId
       );
 
-      await readAgentStream(response, pendingApproval.traceId);
+      await readAgentResponse(response, pendingApproval.traceId);
       setStatus("Agent waiting or finished");
     } catch (error) {
       console.error(error);
@@ -372,7 +298,7 @@ export function useAgentHub() {
     } finally {
       setAgentRunning(false);
     }
-  }, [pendingApproval, readAgentStream]);
+  }, [pendingApproval, readAgentResponse]);
 
   const stopRun = useCallback(async () => {
     if (!currentRunId) return;
