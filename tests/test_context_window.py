@@ -89,3 +89,32 @@ def test_compact_messages_handles_zero_recent_messages():
 
     assert omitted_count == 2
     assert len(compacted) == 2
+
+
+def test_compact_messages_pins_original_task_when_provided():
+    """
+    Long histories keep the original run task pinned right after the system
+    prompt so the model never loses sight of the goal.
+    """
+    messages = [
+        {"role": "system", "content": "system rules"},
+        {"role": "user", "content": "refactor parser.py"},
+        {"role": "assistant", "content": "old assistant " * 30},
+        {"role": "user", "content": "Observation: stale " * 20},
+        {"role": "assistant", "content": "recent assistant"},
+        {"role": "user", "content": "Observation: fresh"},
+    ]
+
+    compacted, omitted_count = context_window.compact_messages_for_context(
+        messages,
+        max_chars=200,
+        keep_recent_messages=2,
+        max_message_chars=80,
+        original_task="refactor parser.py",
+    )
+
+    assert compacted[0] == {"role": "system", "content": "system rules"}
+    assert compacted[1]["role"] == "user"
+    assert compacted[1]["content"].startswith(context_window.ORIGINAL_TASK_PREFIX)
+    assert "refactor parser.py" in compacted[1]["content"]
+    assert omitted_count >= 1

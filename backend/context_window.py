@@ -2,6 +2,7 @@
 
 
 CONTEXT_SUMMARY_PREFIX = "Context summary:"
+ORIGINAL_TASK_PREFIX = "Original task:"
 
 
 def message_char_count(message):
@@ -56,9 +57,14 @@ def compact_messages_for_context(
     max_chars,
     keep_recent_messages,
     max_message_chars,
+    original_task=None,
 ):
     """
     Return messages capped to a context budget plus the count of omitted messages.
+
+    When ``original_task`` is provided, the function injects a pinned user
+    message right after the system prompt so the model keeps the run goal in
+    scope after older history is summarized away.
     """
     if messages_char_count(messages) <= max_chars:
         return messages, 0
@@ -74,17 +80,28 @@ def compact_messages_for_context(
         recent_messages = non_system_messages[-keep_recent_messages:]
         omitted_messages = non_system_messages[:-keep_recent_messages]
 
-    compacted = [
-        *system_messages[:1],
-        {
+    compacted = [*system_messages[:1]]
+
+    if original_task:
+        compacted.append(
+            truncate_message(
+                {
+                    "role": "user",
+                    "content": f"{ORIGINAL_TASK_PREFIX} {original_task}",
+                },
+                max_message_chars,
+            )
+        )
+
+    if omitted_messages:
+        compacted.append({
             "role": "user",
             "content": build_compaction_summary(omitted_messages),
-        },
-        *[
-            truncate_message(message, max_message_chars)
-            for message in recent_messages
-        ],
-    ]
+        })
+
+    compacted.extend(
+        truncate_message(message, max_message_chars) for message in recent_messages
+    )
 
     while len(compacted) > 2 and messages_char_count(compacted) > max_chars:
         compacted.pop(2)

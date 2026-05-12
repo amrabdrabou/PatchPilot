@@ -3,14 +3,15 @@ from copy import deepcopy
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi.responses import StreamingResponse
+from starlette.concurrency import iterate_in_threadpool
 from backend.agent_stream import (
     start_agent_stream,
     approve_pending_tool,
     reject_pending_tool,
 )
-from backend.config import MAX_STEPS, MAX_TOOL_CALLS
+from backend.config import MAX_STEPS, MAX_TASK_LENGTH, MAX_TOOL_CALLS
 from backend.run_state import request_run_stop
 from backend.stream_events import format_sse
 
@@ -43,7 +44,7 @@ messages = []
 
 
 class AgentRunRequest(BaseModel):
-    task: str
+    task: str = Field(min_length=1, max_length=MAX_TASK_LENGTH)
 
 
 class ApprovalRequest(BaseModel):
@@ -93,10 +94,16 @@ def reset_all_messages():
 async def stream_events_with_disconnect(request, events):
     """
     Yield SSE chunks and request run stop if the client disconnects.
+
+    The agent's event generator does blocking work (LLM HTTP calls, tool
+    execution, retry sleeps). Iterating it directly inside this async function
+    would block the asyncio event loop and prevent other endpoints — including
+    ``/stop-run`` — from running. ``iterate_in_threadpool`` offloads each
+    ``next()`` call to a worker thread so the loop stays responsive.
     """
     active_run_id = None
 
-    for event in events:
+    async for event in iterate_in_threadpool(events):
         if event.get("run_id"):
             active_run_id = event["run_id"]
 

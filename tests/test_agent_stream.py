@@ -11,7 +11,7 @@ def test_final_run_is_removed_from_active_runs(monkeypatch):
     monkeypatch.setattr(
         agent_stream,
         "ask_model",
-        lambda messages: "Final Answer: done",
+        lambda messages, **kwargs: "Final Answer: done",
     )
     monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
 
@@ -27,7 +27,7 @@ def test_final_run_logs_token_usage_and_trace(monkeypatch):
     monkeypatch.setattr(
         agent_stream,
         "ask_model",
-        lambda messages: {
+        lambda messages, **kwargs: {
             "content": "Final Answer: done",
             "usage": {
                 "prompt_tokens": 3,
@@ -57,19 +57,21 @@ def test_final_run_logs_token_usage_and_trace(monkeypatch):
 def test_stream_compacts_context_before_model_call(monkeypatch):
     seen_messages = []
 
-    def fake_ask_model(messages):
+    def fake_ask_model(messages, **kwargs):
         seen_messages.append(messages)
         return "Final Answer: compacted"
 
     monkeypatch.setattr(agent_stream, "ask_model", fake_ask_model)
     monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
-    monkeypatch.setattr(agent_stream, "MAX_CONTEXT_CHARS", 120)
+    monkeypatch.setattr(agent_stream, "MAX_CONTEXT_CHARS", 300)
     monkeypatch.setattr(agent_stream, "CONTEXT_KEEP_RECENT_MESSAGES", 1)
-    monkeypatch.setattr(agent_stream, "MAX_CONTEXT_MESSAGE_CHARS", 40)
+    monkeypatch.setattr(agent_stream, "MAX_CONTEXT_MESSAGE_CHARS", 100)
 
-    list(agent_stream.start_agent_stream("x" * 200, max_steps=1))
+    list(agent_stream.start_agent_stream("important goal", max_steps=1))
 
-    assert seen_messages[0][1]["content"].startswith("Context summary:")
+    assert seen_messages[0][1]["role"] == "user"
+    assert "Original task:" in seen_messages[0][1]["content"]
+    assert "important goal" in seen_messages[0][1]["content"]
     assert len(seen_messages[0]) <= 3
 
 
@@ -77,7 +79,7 @@ def test_step_limit_run_is_removed_from_active_runs(monkeypatch):
     monkeypatch.setattr(
         agent_stream,
         "ask_model",
-        lambda messages: "Thought: still working",
+        lambda messages, **kwargs: "Thought: still working",
     )
     monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
 
@@ -92,7 +94,7 @@ def test_step_limit_includes_best_effort_assistant_message(monkeypatch):
     monkeypatch.setattr(
         agent_stream,
         "ask_model",
-        lambda messages: "Thought: partial useful work",
+        lambda messages, **kwargs: "Thought: partial useful work",
     )
     monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
 
@@ -106,7 +108,7 @@ def test_approval_pause_keeps_run_active(monkeypatch):
     monkeypatch.setattr(
         agent_stream,
         "ask_model",
-        lambda messages: 'Action: edit_file("hello.py", "old", "new")',
+        lambda messages, **kwargs: 'Action: edit_file("hello.py", "old", "new")',
     )
 
     events = list(agent_stream.start_agent_stream("edit", max_steps=2))
@@ -119,7 +121,7 @@ def test_rejected_tool_run_is_removed_from_active_runs(monkeypatch):
     monkeypatch.setattr(
         agent_stream,
         "ask_model",
-        lambda messages: 'Action: edit_file("hello.py", "old", "new")',
+        lambda messages, **kwargs: 'Action: edit_file("hello.py", "old", "new")',
     )
     monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
 
@@ -140,7 +142,7 @@ def test_rejected_tool_uses_blocked_observation(monkeypatch):
     monkeypatch.setattr(
         agent_stream,
         "ask_model",
-        lambda messages: 'Action: edit_file("hello.py", "old", "new")',
+        lambda messages, **kwargs: 'Action: edit_file("hello.py", "old", "new")',
     )
     monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
 
@@ -160,7 +162,7 @@ def test_stop_request_stops_and_removes_run(monkeypatch):
     monkeypatch.setattr(
         agent_stream,
         "ask_model",
-        lambda messages: "Thought: still working",
+        lambda messages, **kwargs: "Thought: still working",
     )
     monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
     state = agent_stream.create_run_state("stop me", max_steps=2, max_tool_calls=1)
@@ -179,7 +181,7 @@ def test_stop_before_tool_execution_does_not_run_tool(monkeypatch):
     monkeypatch.setattr(
         agent_stream,
         "ask_model",
-        lambda messages: 'Action: read_file("README.md")',
+        lambda messages, **kwargs: 'Action: read_file("README.md")',
     )
     monkeypatch.setattr(agent_stream, "run_tool", lambda *args: calls.append(args))
     monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
@@ -206,7 +208,7 @@ def test_approved_tool_clears_pending_before_execution(monkeypatch):
     monkeypatch.setattr(
         agent_stream,
         "ask_model",
-        lambda messages: 'Action: edit_file("hello.py", "old", "new")',
+        lambda messages, **kwargs: 'Action: edit_file("hello.py", "old", "new")',
     )
     monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
 
@@ -237,7 +239,7 @@ def test_stop_after_approval_decision_does_not_run_tool(monkeypatch):
     monkeypatch.setattr(
         agent_stream,
         "ask_model",
-        lambda messages: 'Action: edit_file("hello.py", "old", "new")',
+        lambda messages, **kwargs: 'Action: edit_file("hello.py", "old", "new")',
     )
     monkeypatch.setattr(agent_stream, "run_tool", lambda *args: calls.append(args))
     monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
@@ -265,7 +267,7 @@ def test_stop_request_reports_missing_run():
 
 
 def test_model_error_stops_and_removes_run(monkeypatch):
-    def failing_model(messages):
+    def failing_model(messages, **kwargs):
         raise RuntimeError("network down")
 
     monkeypatch.setattr(agent_stream, "ask_model", failing_model)
@@ -279,11 +281,27 @@ def test_model_error_stops_and_removes_run(monkeypatch):
     assert agent_stream.ACTIVE_RUNS == {}
 
 
+def test_model_call_cancelled_routes_to_stop_not_error(monkeypatch):
+    def cancelled_model(messages, **kwargs):
+        raise agent_stream.ModelCallCancelled()
+
+    monkeypatch.setattr(agent_stream, "ask_model", cancelled_model)
+    monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
+
+    events = list(agent_stream.start_agent_stream("stop me", max_steps=2))
+
+    assert events[-1]["type"] == "stopped"
+    assert "user requested stop" in events[-1]["content"]
+    error_events = [event for event in events if event["type"] == "error"]
+    assert error_events == []
+    assert agent_stream.ACTIVE_RUNS == {}
+
+
 def test_log_failure_does_not_break_final_run(monkeypatch):
     monkeypatch.setattr(
         agent_stream,
         "ask_model",
-        lambda messages: "Final Answer: done",
+        lambda messages, **kwargs: "Final Answer: done",
     )
 
     def failing_log(record):

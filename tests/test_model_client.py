@@ -99,3 +99,73 @@ def test_ask_model_result_stops_after_retry_limit(monkeypatch):
         model_client.ask_model_result([{"role": "user", "content": "hi"}])
 
     assert len(calls) == model_client.MODEL_MAX_RETRIES + 1
+
+
+def test_interruptible_sleep_returns_early_when_should_stop_fires(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(model_client.time, "sleep", sleeps.append)
+
+    poll_count = [0]
+
+    def should_stop():
+        poll_count[0] += 1
+        return poll_count[0] > 1
+
+    model_client.interruptible_sleep(5.0, should_stop)
+
+    assert sum(sleeps) < 5.0
+    assert sum(sleeps) <= model_client.SLEEP_TICK_SECONDS
+
+
+def test_interruptible_sleep_without_should_stop_keeps_single_sleep(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(model_client.time, "sleep", sleeps.append)
+
+    model_client.interruptible_sleep(0.25, None)
+
+    assert sleeps == [0.25]
+
+
+def test_ask_model_result_raises_cancelled_before_first_attempt(monkeypatch):
+    calls = []
+
+    def fake_create(**kwargs):
+        calls.append(kwargs)
+
+    fake_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    )
+    monkeypatch.setattr(model_client, "get_client", lambda: fake_client)
+
+    with pytest.raises(model_client.ModelCallCancelled):
+        model_client.ask_model_result(
+            [{"role": "user", "content": "hi"}],
+            should_stop=lambda: True,
+        )
+
+    assert calls == []
+
+
+def test_ask_model_result_cancels_during_retry_sleep(monkeypatch):
+    calls = []
+
+    def fake_create(**kwargs):
+        calls.append(kwargs)
+        raise FakeTransientError("rate limit")
+
+    fake_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    )
+    monkeypatch.setattr(model_client, "get_client", lambda: fake_client)
+    monkeypatch.setattr(model_client.time, "sleep", lambda delay: None)
+
+    def should_stop():
+        return len(calls) >= 1
+
+    with pytest.raises(model_client.ModelCallCancelled):
+        model_client.ask_model_result(
+            [{"role": "user", "content": "hi"}],
+            should_stop=should_stop,
+        )
+
+    assert len(calls) == 1

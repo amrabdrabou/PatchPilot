@@ -1,5 +1,7 @@
 # Runs the streaming ReAct loop used by the web UI.
-from backend.model_client import ask_model_result as ask_model
+import logging
+
+from backend.model_client import ModelCallCancelled, ask_model_result as ask_model
 from backend.model_results import (
     add_token_usage,
     build_observation,
@@ -34,6 +36,9 @@ APPROVAL_REQUIRED_TOOLS = {
     "run_bash",
     "edit_file",
 }
+
+
+logger = logging.getLogger(__name__)
 
 
 def log_stream_run(state, status, final_answer):
@@ -151,6 +156,7 @@ def run_agent_until_pause(state):
                 MAX_CONTEXT_CHARS,
                 CONTEXT_KEEP_RECENT_MESSAGES,
                 MAX_CONTEXT_MESSAGE_CHARS,
+                original_task=state["task"],
             )
 
             if compacted_count:
@@ -160,10 +166,19 @@ def run_agent_until_pause(state):
                     f"Compacted {compacted_count} older messages before model call.",
                 )
 
-            assistant_message, usage = normalize_model_result(ask_model(state["messages"]))
+            assistant_message, usage = normalize_model_result(
+                ask_model(
+                    state["messages"],
+                    should_stop=lambda: state.get("stop_requested"),
+                )
+            )
             add_token_usage(state["token_usage"], usage)
             state["model_calls"] += 1
+        except ModelCallCancelled:
+            yield from stop_run_safely(state)
+            return
         except Exception as error:
+            logger.exception("Model call failed for run %s", run_id)
             message = f"Model call failed: {type(error).__name__}."
             yield from fail_run_safely(state, message)
             return
@@ -301,6 +316,9 @@ def run_agent_until_pause(state):
         try:
             result = run_tool(tool_name, arguments)
         except Exception as error:
+            logger.exception(
+                "Tool execution failed for run %s tool %s", run_id, tool_name
+            )
             message = f"Tool execution failed: {type(error).__name__}."
             yield from fail_run_safely(state, message)
             return
@@ -427,6 +445,11 @@ def approve_pending_tool(run_id, approval_id):
     try:
         result = run_tool(tool_name, arguments)
     except Exception as error:
+        logger.exception(
+            "Approved tool execution failed for run %s tool %s",
+            run_id,
+            tool_name,
+        )
         message = f"Tool execution failed: {type(error).__name__}."
         yield from fail_run_safely(state, message)
         return

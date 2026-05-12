@@ -1,3 +1,5 @@
+import logging
+
 from backend.prompts import build_system_prompt
 from backend.model_client import ask_model_result as ask_model
 from backend.model_results import (
@@ -21,6 +23,9 @@ APPROVAL_REQUIRED_TOOLS = {
     "run_bash",
     "edit_file",
 }
+
+
+logger = logging.getLogger(__name__)
 
 
 def ask_cli_approval(tool_name, arguments):
@@ -97,6 +102,7 @@ def run_agent(user_task, max_steps=5, max_tool_calls=3):
                 MAX_CONTEXT_CHARS,
                 CONTEXT_KEEP_RECENT_MESSAGES,
                 MAX_CONTEXT_MESSAGE_CHARS,
+                original_task=user_task,
             )
 
             if compacted_count:
@@ -110,6 +116,7 @@ def run_agent(user_task, max_steps=5, max_tool_calls=3):
             add_token_usage(token_usage, usage)
             model_calls += 1
         except Exception as error:
+            logger.exception("Model call failed for CLI run %s", run_id)
             final_answer = f"Agent stopped after a handled model error: {type(error).__name__}."
             print(final_answer)
             record_trace(step + 1, "error", final_answer)
@@ -165,6 +172,11 @@ def run_agent(user_task, max_steps=5, max_tool_calls=3):
                     try:
                         result = run_tool(tool_name, arguments)
                     except Exception as error:
+                        logger.exception(
+                            "Tool execution failed for CLI run %s tool %s",
+                            run_id,
+                            tool_name,
+                        )
                         result = f"Error: Tool execution failed: {type(error).__name__}."
                     tool_calls += 1
                     tool_usage[tool_name] = tool_usage.get(tool_name, 0) + 1

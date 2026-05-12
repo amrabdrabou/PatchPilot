@@ -12,6 +12,10 @@ MAX_CONTEXT_CHARS = 24000
 CONTEXT_KEEP_RECENT_MESSAGES = 8
 MAX_CONTEXT_MESSAGE_CHARS = 6000
 
+# Mirrors the frontend MAX_DRAFT_LENGTH cap so direct API clients cannot bypass
+# the textarea limit by POSTing oversized tasks.
+MAX_TASK_LENGTH = 4000
+
 COMMAND_TIMEOUT_SECONDS = 10
 MAX_COMMAND_OUTPUT_CHARS = 3000
 

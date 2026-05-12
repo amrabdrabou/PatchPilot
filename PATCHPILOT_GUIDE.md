@@ -63,16 +63,19 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 - `/clear` clears messages instead of being sent to the model.
 - `/help` and `/status` are handled locally instead of being sent to the model.
 - Task drafting uses a multi-line textarea with a client-side length cap.
+- The backend `AgentRunRequest` model rejects empty or oversized tasks with HTTP 422 before any run state is created, mirroring the frontend `MAX_DRAFT_LENGTH` via `MAX_TASK_LENGTH` in `backend/config.py`.
 - The UI shows real run progress:
   - status
   - steps used / max steps
   - tool calls used / max tool calls
   - model calls
 - Stream runs request cancellation if the browser disconnects mid-stream.
+- The SSE wrapper iterates the agent's blocking event generator through `starlette.concurrency.iterate_in_threadpool` so the asyncio event loop stays responsive to `/stop-run`, `/reject-tool`, and disconnect checks while the agent is mid-step (e.g., during a slow model call or retry backoff).
 - The frontend stream reader also processes a final buffered SSE event if the stream closes without a trailing blank line.
 - Frontend trace messages store streamed chunks separately so appends do not repeatedly concatenate one growing string.
 - Run logs include token usage totals, context compaction counts, and a compact per-step trace.
 - Long runs compact older conversation history before model calls so recent context stays under the configured budget.
+- Context compaction pins the original run task as a `Original task:` user message right after the system prompt so the agent keeps the goal in scope even after older history is summarized away.
 - Observations are tagged as success, error, or blocked so the model can react more reliably.
 - CLI and web runs share model-result normalization and observation tagging through `backend/model_results.py`.
 - Stop requests are checked before tool execution, and approved pending tools are cleared before running.
@@ -90,6 +93,8 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 - Stream event payload and trace helpers are centralized in `backend/stream_events.py`.
 - CLI and web trace compaction share `backend/trace_utils.py`.
 - Transient model API errors use a short retry/backoff before the run fails safely.
+- The retry-backoff sleep is interruptible: `ask_model_result` polls the run's `stop_requested` flag in small ticks, and a stop request mid-retry raises `ModelCallCancelled` so the stream wrapper routes the run into `stop_run_safely` (stopped event) instead of `fail_run_safely` (error event).
+- Unexpected model and tool exceptions are logged with full tracebacks via the Python logging module before the user-facing stream payload is sanitized, so server logs keep a forensic trail without leaking details to the UI.
 - GitHub Actions runs backend and frontend checks on pushes and pull requests.
 - Docker Compose bind-mounts `backend/`, `frontend/`, `logs/`, and `test_project/`.
 - The backend Docker image installs `git`, and Compose mounts `.git` read-only so `git_diff` and `git_status` can inspect sandbox changes.
@@ -180,9 +185,15 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 25. Done: Split frontend message and progress state out of `useAgentHub.js`.
 26. Done: Add frontend hook-level tests for `useAgentHub`.
 27. Done: Add GitHub Actions CI for backend and frontend checks.
-28. Later add persistent storage with SQLite or JSON so messages survive backend restarts.
-29. Later scope backend state by session/client before multi-user or class-hub use.
-30. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
+28. Done: Pin the original run task across context-window compaction so long runs do not lose the goal.
+29. Done: Log full tracebacks for model and tool exceptions server-side while keeping the streamed payload sanitized.
+30. Done: Cover the disconnect-triggers-stop path in `stream_events_with_disconnect` with backend tests.
+31. Done: Iterate the agent's blocking event generator in a threadpool so `/stop-run` and disconnect detection stay responsive while the model or a tool is mid-call.
+32. Done: Enforce a server-side `MAX_TASK_LENGTH` (and reject empty tasks) on `/run-agent-stream` so direct API clients cannot bypass the frontend textarea cap.
+33. Done: Make the retry backoff sleep in `ask_model_result` interruptible so `/stop-run` fires during a transient-error retry sequence without waiting for the full backoff.
+34. Later add persistent storage with SQLite or JSON so messages survive backend restarts.
+35. Later scope backend state by session/client before multi-user or class-hub use.
+36. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
 
 ## Assignment Fit
 

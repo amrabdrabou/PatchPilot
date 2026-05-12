@@ -16,6 +16,12 @@ TRANSIENT_ERROR_NAMES = {
 }
 TRANSIENT_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
 
+SLEEP_TICK_SECONDS = 0.1
+
+
+class ModelCallCancelled(Exception):
+    """Raised when a caller asks ``ask_model_result`` to stop mid-retry."""
+
 
 def get_client():
     """
@@ -43,6 +49,28 @@ def retry_delay(attempt):
     return MODEL_RETRY_BACKOFF_SECONDS * attempt
 
 
+def interruptible_sleep(total_seconds, should_stop):
+    """
+    Sleep up to ``total_seconds``, returning early if ``should_stop`` returns True.
+
+    When ``should_stop`` is None this falls back to one ``time.sleep`` call so
+    existing callers and tests see no behavior change.
+    """
+    if should_stop is None:
+        time.sleep(total_seconds)
+        return
+
+    elapsed = 0.0
+
+    while elapsed < total_seconds:
+        if should_stop():
+            return
+
+        chunk = min(SLEEP_TICK_SECONDS, total_seconds - elapsed)
+        time.sleep(chunk)
+        elapsed += chunk
+
+
 def extract_token_usage(response):
     """
     Return token counters from an LLM response when the provider includes them.
@@ -63,13 +91,21 @@ def extract_token_usage(response):
     }
 
 
-def ask_model_result(messages):
+def ask_model_result(messages, should_stop=None):
     """
     Send messages to the LLM and return text plus token usage.
+
+    When ``should_stop`` is provided it is polled before each attempt and during
+    retry backoff sleeps. If it returns True the function raises
+    ``ModelCallCancelled`` so the caller can route the run into a stop-safe
+    cleanup path instead of treating cancellation as a generic failure.
     """
     last_error = None
 
     for attempt in range(1, MODEL_MAX_RETRIES + 2):
+        if should_stop is not None and should_stop():
+            raise ModelCallCancelled()
+
         try:
             response = get_client().chat.completions.create(
                 model=MODEL_NAME,
@@ -83,7 +119,10 @@ def ask_model_result(messages):
             if not is_transient_model_error(error) or attempt > MODEL_MAX_RETRIES:
                 raise
 
-            time.sleep(retry_delay(attempt))
+            interruptible_sleep(retry_delay(attempt), should_stop)
+
+            if should_stop is not None and should_stop():
+                raise ModelCallCancelled()
     else:
         raise last_error
 
