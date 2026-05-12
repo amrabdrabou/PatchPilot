@@ -1,3 +1,4 @@
+# Maps model-requested tool names to safe Python functions.
 from backend.tools import list_files, read_file, run_bash, search_files, edit_file, git_diff, git_status
 
 

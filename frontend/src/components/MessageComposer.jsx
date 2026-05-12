@@ -12,6 +12,7 @@ function MessageComposer({
   onReject,
   onSelectAgent,
   onSend,
+  onStop,
 }) {
   function handleSubmit(event) {
     event.preventDefault();
@@ -30,7 +31,7 @@ function MessageComposer({
         pendingApproval={pendingApproval}
       />
 
-      <div className="mx-auto grid max-w-6xl gap-2 md:grid-cols-[180px_1fr_auto]">
+      <div className="mx-auto grid max-w-6xl gap-2 md:grid-cols-[180px_1fr_auto_auto]">
         <select
           value={selectedAgentId}
           onChange={(event) => onSelectAgent(event.target.value)}
@@ -56,6 +57,15 @@ function MessageComposer({
           type="submit"
         >
           {agentRunning ? "Running..." : "Send"}
+        </button>
+
+        <button
+          disabled={!agentRunning}
+          onClick={onStop}
+          className="border border-[#ffb4ab]/45 bg-[#ffb4ab]/10 px-4 py-2 font-mono text-xs font-semibold uppercase tracking-widest text-[#ffb4ab] transition hover:bg-[#ffb4ab]/20 disabled:cursor-not-allowed disabled:opacity-40"
+          type="button"
+        >
+          Stop
         </button>
       </div>
     </form>

@@ -48,3 +48,13 @@ export function rejectToolCall(runId, approvalId) {
     approval_id: approvalId,
   });
 }
+
+export function stopAgentRun(runId) {
+  return fetchJson("/stop-run", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ run_id: runId }),
+  });
+}

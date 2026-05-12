@@ -6,6 +6,7 @@ import {
   rejectToolCall,
   resetMessages,
   startAgentRun,
+  stopAgentRun,
 } from "../api/agentApi";
 import {
   buildPendingApproval,
@@ -27,6 +28,15 @@ const EMPTY_PROGRESS = {
   toolCallsUsed: 0,
 };
 
+const HELP_MESSAGE = [
+  "Available commands:",
+  "/help - Show local UI commands.",
+  "/status - Show current run status and limits.",
+  "/clear - Clear the message stream.",
+  "",
+  "PatchPilot can inspect files, search text, run allowlisted commands, show git status/diff, and edit sandbox files after approval.",
+].join("\n");
+
 export function useAgentHub() {
   const [agentRunning, setAgentRunning] = useState(false);
   const [pendingApproval, setPendingApproval] = useState(null);
@@ -37,6 +47,7 @@ export function useAgentHub() {
   const [status, setStatus] = useState("Loading...");
   const [limits, setLimits] = useState(EMPTY_LIMITS);
   const [runProgress, setRunProgress] = useState(EMPTY_PROGRESS);
+  const [currentRunId, setCurrentRunId] = useState(null);
 
   const agentMap = useMemo(() => {
     return Object.fromEntries(agents.map((agent) => [agent.id, agent]));
@@ -163,7 +174,19 @@ export function useAgentHub() {
         for (const part of parts) {
           if (!part.startsWith("data: ")) continue;
 
-          const event = JSON.parse(part.replace("data: ", ""));
+          let event;
+
+          try {
+            event = JSON.parse(part.replace("data: ", ""));
+          } catch (error) {
+            console.error(error);
+            appendMessageText(traceId, "\n[ERROR]\nMalformed stream event skipped.\n");
+            continue;
+          }
+
+          if (event.run_id) {
+            setCurrentRunId(event.run_id);
+          }
 
           updateProgressFromEvent(event);
 
@@ -184,6 +207,7 @@ export function useAgentHub() {
 
             finishTraceMessage(traceId, extractFinalAnswer(event.content), label);
             setPendingApproval(null);
+            setCurrentRunId(null);
           }
         }
       }
@@ -195,10 +219,38 @@ export function useAgentHub() {
     if (!draft.trim() || agentRunning) return;
 
     const task = draft.trim();
+    const command = task.toLowerCase();
 
-    if (task.toLowerCase() === "/clear") {
+    if (command === "/help") {
+      setDraft("");
+      addLocalMessage("backend", HELP_MESSAGE, "message");
+      setStatus("Help shown");
+      return;
+    }
+
+    if (command === "/status") {
+      setDraft("");
+      addLocalMessage(
+        "backend",
+        [
+          `Status: ${status}`,
+          `Run state: ${agentRunning ? "running" : runProgress.status}`,
+          `Steps: ${runProgress.stepsUsed} / ${limits.maxSteps}`,
+          `Tool calls: ${runProgress.toolCallsUsed} / ${limits.maxToolCalls}`,
+          `Model calls: ${runProgress.modelCalls}`,
+          `Pending approval: ${pendingApproval ? "yes" : "no"}`,
+          `Messages: ${messages.length}`,
+        ].join("\n"),
+        "message"
+      );
+      setStatus("Status shown");
+      return;
+    }
+
+    if (command === "/clear") {
       setDraft("");
       setPendingApproval(null);
+      setCurrentRunId(null);
       setRunProgress(EMPTY_PROGRESS);
 
       try {
@@ -224,6 +276,7 @@ export function useAgentHub() {
     setAgentRunning(true);
     setStatus("Agent running...");
     setPendingApproval(null);
+    setCurrentRunId(null);
     setRunProgress({
       modelCalls: 0,
       status: "running",
@@ -245,7 +298,18 @@ export function useAgentHub() {
     } finally {
       setAgentRunning(false);
     }
-  }, [addLocalMessage, agentRunning, draft, readAgentStream, updateMessage]);
+  }, [
+    addLocalMessage,
+    agentRunning,
+    draft,
+    limits,
+    messages.length,
+    pendingApproval,
+    readAgentStream,
+    runProgress,
+    status,
+    updateMessage,
+  ]);
 
   const resetAllMessages = useCallback(async () => {
     try {
@@ -258,6 +322,7 @@ export function useAgentHub() {
       setSelectedAgentId(data.agents[0]?.id ?? "");
       setDraft("");
       setPendingApproval(null);
+      setCurrentRunId(null);
       setStatus("Messages reset");
     } catch (error) {
       setStatus("Failed to reset messages");
@@ -309,6 +374,25 @@ export function useAgentHub() {
     }
   }, [pendingApproval, readAgentStream]);
 
+  const stopRun = useCallback(async () => {
+    if (!currentRunId) return;
+
+    setStatus("Stopping agent...");
+
+    try {
+      const result = await stopAgentRun(currentRunId);
+
+      if (!result.stop_requested) {
+        setStatus("Run already finished or not found");
+        setAgentRunning(false);
+        setCurrentRunId(null);
+      }
+    } catch (error) {
+      setStatus("Stop request failed");
+      console.error(error);
+    }
+  }, [currentRunId]);
+
   useEffect(() => {
     let ignoreResult = false;
 
@@ -353,6 +437,7 @@ export function useAgentHub() {
     rejectTool,
     resetAllMessages,
     sendMessage,
+    stopRun,
     setDraft,
     setSelectedAgentId,
   };

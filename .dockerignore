@@ -1,0 +1,19 @@
+# Keeps local secrets and generated files out of Docker build contexts.
+.env
+.git
+.venv
+__pycache__
+.pytest_cache
+*.pyc
+
+# Logs and local output
+logs
+backend/logs
+frontend/dist
+frontend/node_modules
+
+# Editor and OS files
+.vscode
+.idea
+.DS_Store
+Thumbs.db

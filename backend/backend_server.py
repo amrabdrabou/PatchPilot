@@ -2,7 +2,7 @@
 from copy import deepcopy
 from datetime import datetime, timezone
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
@@ -10,16 +10,20 @@ from backend.agent_stream import (
     start_agent_stream,
     approve_pending_tool,
     reject_pending_tool,
-    format_sse,
+    request_stop_run,
 )
 from backend.config import MAX_STEPS, MAX_TOOL_CALLS
+from backend.stream_events import format_sse
 
 app = FastAPI()
 
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,8 +55,15 @@ class ApprovalRequest(BaseModel):
     approval_id: str
 
 
+class StopRunRequest(BaseModel):
+    run_id: str
+
+
 @app.get("/state")
 def get_state():
+    """
+    Return current UI state and configured run limits.
+    """
     return {
         "agents": agents,
         "messages": messages,
@@ -65,6 +76,9 @@ def get_state():
 
 @app.post("/messages")
 def create_message(message: MessageCreate):
+    """
+    Store a manual message from the frontend.
+    """
     new_message = {
         "id": len(messages) + 1,
         "agentId": message.agentId,
@@ -79,6 +93,9 @@ def create_message(message: MessageCreate):
 
 @app.post("/reset")
 def reset_all_messages():
+    """
+    Reset in-memory agents and messages to their defaults.
+    """
     global messages, agents
 
     agents = deepcopy(DEFAULT_AGENTS)
@@ -93,46 +110,80 @@ def reset_all_messages():
         },
     }
 
+async def stream_events_with_disconnect(request, events):
+    """
+    Yield SSE chunks and request run stop if the client disconnects.
+    """
+    active_run_id = None
+
+    for event in events:
+        if event.get("run_id"):
+            active_run_id = event["run_id"]
+
+        if await request.is_disconnected():
+            if active_run_id:
+                request_stop_run(active_run_id)
+            break
+
+        yield format_sse(event)
+
+
 @app.post("/run-agent-stream")
-def run_agent_stream_endpoint(request: AgentRunRequest):
-    def event_generator():
-        for event in start_agent_stream(
-            request.task,
-            max_steps=MAX_STEPS,
-            max_tool_calls=MAX_TOOL_CALLS,
-        ):
-            yield format_sse(event)
+def run_agent_stream_endpoint(request: Request, body: AgentRunRequest):
+    """
+    Stream a new PatchPilot run to the frontend.
+    """
+    events = start_agent_stream(
+        body.task,
+        max_steps=MAX_STEPS,
+        max_tool_calls=MAX_TOOL_CALLS,
+    )
 
     return StreamingResponse(
-        event_generator(),
+        stream_events_with_disconnect(request, events),
         media_type="text/event-stream",
     )
 
 @app.post("/approve-tool")
-def approve_tool_endpoint(request: ApprovalRequest):
-    def event_generator():
-        for event in approve_pending_tool(
-            request.run_id,
-            request.approval_id,
-        ):
-            yield format_sse(event)
+def approve_tool_endpoint(request: Request, body: ApprovalRequest):
+    """
+    Stream the result of approving a pending tool call.
+    """
+    events = approve_pending_tool(
+        body.run_id,
+        body.approval_id,
+    )
 
     return StreamingResponse(
-        event_generator(),
+        stream_events_with_disconnect(request, events),
         media_type="text/event-stream",
     )
 
 
+@app.post("/stop-run")
+def stop_run_endpoint(request: StopRunRequest):
+    """
+    Request a running stream to stop at the next safe checkpoint.
+    """
+    stopped = request_stop_run(request.run_id)
+
+    return {
+        "run_id": request.run_id,
+        "stop_requested": stopped,
+    }
+
+
 @app.post("/reject-tool")
-def reject_tool_endpoint(request: ApprovalRequest):
-    def event_generator():
-        for event in reject_pending_tool(
-            request.run_id,
-            request.approval_id,
-        ):
-            yield format_sse(event)
+def reject_tool_endpoint(request: Request, body: ApprovalRequest):
+    """
+    Stream the result of rejecting a pending tool call.
+    """
+    events = reject_pending_tool(
+        body.run_id,
+        body.approval_id,
+    )
 
     return StreamingResponse(
-        event_generator(),
+        stream_events_with_disconnect(request, events),
         media_type="text/event-stream",
     )

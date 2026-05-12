@@ -1,3 +1,4 @@
+// Configures ESLint rules for the React frontend.
 import js from '@eslint/js'
 import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'

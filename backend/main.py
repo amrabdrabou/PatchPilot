@@ -1,9 +1,18 @@
 # Provides a small CLI entry point for running the backend agent loop.
+import sys
+from pathlib import Path
+
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from backend.agent import run_agent
 from backend.config import MAX_STEPS, MAX_TOOL_CALLS
 
 
 def print_help():
+    """
+    Print available CLI commands and example tasks.
+    """
     print("""
 Commands:
   /help    Show this help message
@@ -17,6 +26,9 @@ Examples:
 
 
 def main():
+    """
+    Run the interactive terminal entry point for PatchPilot.
+    """
     print("ReAct Developer Agent")
     print("Type /help for commands.")
     print("Type /exit to quit.")

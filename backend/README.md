@@ -1,3 +1,4 @@
+<!-- Explains the PatchPilot backend runtime and API. -->
 # PatchPilot Backend
 
 This folder contains the Python runtime and FastAPI server for PatchPilot.
@@ -14,8 +15,10 @@ The backend runs a custom ReAct software-developer agent. It owns the model call
 - `model_client.py` calls the LLM API.
 - `prompts.py` defines PatchPilot's system prompt.
 - `parser.py` parses homemade `Action: tool_name(...)` calls.
+- `run_logger.py` writes structured JSONL records for completed UI and CLI runs.
+- `run_state.py` owns active web-run state, cancellation flags, pending approvals, and cleanup.
 - `tool_registry.py` maps tool names to Python functions.
-- `tools.py` implements file, search, edit, git, and safe command tools.
+- `tools/` contains focused modules for safety checks, file tools, command execution, and git inspection.
 - `config.py` stores model, step, tool, command, and sandbox limits.
 
 ## API Routes
@@ -25,6 +28,7 @@ The backend runs a custom ReAct software-developer agent. It owns the model call
 - `POST /reset` clears messages and resets agent state.
 - `POST /run-agent-stream` starts a streamed PatchPilot run.
 - `POST /approve-tool` approves a pending tool call.
+- `POST /stop-run` requests a running stream to stop.
 - `POST /reject-tool` rejects a pending tool call.
 
 ## ReAct Flow
@@ -46,15 +50,50 @@ The streaming loop also emits progress data:
 - tool calls
 - max tool calls
 
+## CLI Flow
+
+The backend also includes a terminal runner:
+
+- `main.py` is the CLI entry point.
+- `agent.py` runs the non-streaming CLI ReAct loop.
+- The CLI loop uses the same model client, prompt, homemade parser, tool registry, sandboxed tools, step limit, and tool call limit as the web flow.
+- The CLI loop asks for terminal approval before running `run_bash` or `edit_file`.
+- The React UI does not use `agent.py`; UI runs go through `agent_stream.py` and `backend_server.py`.
+
+From the project root:
+
+```bash
+python -m backend.main
+```
+
+From the backend folder:
+
+```bash
+python main.py
+```
+
 ## Safety Model
 
 - File access is restricted to `PROJECT_DIR`.
 - `run_bash` uses an allowlist and `shell=False`.
-- `run_bash` and `edit_file` require frontend approval.
+- `run_bash` validates pytest and git arguments before execution.
+- File tool output is truncated before returning to the model or UI.
+- Search skips large files and noisy generated folders.
+- `run_bash` and `edit_file` require frontend approval in the web flow and terminal approval in the CLI flow.
 - Commands have a timeout.
 - Command output is truncated.
 - Command requests are logged.
+- Completed, stopped, and rejected runs are logged to `logs/runs.jsonl`.
 - Runs stop at `MAX_STEPS` or `MAX_TOOL_CALLS`.
+- Terminal-state stream runs are removed from active run state to avoid stale run state.
+- Active stream state is centralized in `run_state.py` so `agent_stream.py` can focus on orchestration.
+- Expected model, tool, subprocess, filesystem, and logging failures are handled with safe error messages.
+- Transient model API errors use a short retry/backoff before failing safely.
+- Run logs include token usage totals and compact per-step traces.
+- Observations are tagged as success, error, or blocked.
+- Stream endpoints request cancellation if a browser disconnects mid-run.
+- Stop requests are checked before tool execution, and approved pending tools are cleared before running.
+- Stopped runs include the latest assistant message as a best-effort partial answer when available.
 
 Allowed command families are intentionally narrow:
 
@@ -75,18 +114,23 @@ git branch
 Edit `config.py` to change:
 
 - `MODEL_NAME`
+- `MODEL_MAX_RETRIES`
+- `MODEL_RETRY_BACKOFF_SECONDS`
 - `MAX_STEPS`
 - `MAX_TOOL_CALLS`
 - `COMMAND_TIMEOUT_SECONDS`
 - `MAX_COMMAND_OUTPUT_CHARS`
 - `PROJECT_DIR`
 - `COMMAND_LOG_FILE`
+- `RUN_LOG_FILE`
 
 Secrets should live in the project root `.env` file:
 
 ```env
 OPENAI_API_KEY=your_api_key_here
 ```
+
+Use `.env.example` as the safe template. Do not commit real secrets.
 
 ## Run
 
@@ -96,6 +140,26 @@ From the project root:
 uvicorn backend.backend_server:app --reload
 ```
 
+## Run With Docker
+
+From the project root:
+
+```bash
+docker compose up -d --build backend
+```
+
+Docker Desktop must be running before this command works.
+
+Backend URL:
+
+```txt
+http://127.0.0.1:8000/
+```
+
+## Current Limitation
+
+The backend is currently single-user local state. `agents`, `messages`, and active stream runs are process-global, so multiple browsers or users can share history and approval state. Scope state by session/client before using PatchPilot as a multi-user service or connecting it to a class-wide hub.
+
 ## Verify
 
 From the project root:
@@ -104,10 +168,26 @@ From the project root:
 python -m compileall backend
 ```
 
+Run backend tests with a project-local temp folder on Windows:
+
+```bash
+.\.venv\Scripts\python.exe -m pytest tests --basetemp .pytest_tmp_run
+```
+
 ## Next Backend Work
 
 1. Add tests for `parser.py`.
 2. Add tests for `safe_path`.
 3. Add tests for allowed and blocked commands.
-4. Clean `edit_file` so it is fully API/UI-friendly.
-5. Add structured run logs for task, final answer, steps, tools, and model calls.
+4. Done: Clean `edit_file` so it is fully API/UI-friendly.
+5. Done: Add structured run logs for task, final answer, steps, tools, and model calls.
+6. Done: Split runtime tools into the `tools/` package.
+7. Done: Add targeted tests for split command and file tool modules.
+8. Done: Tighten command/file tool safety with stricter args, truncation, sorted listing, and safer edits.
+9. Done: Add a stop endpoint and active-run cleanup for terminal stream states.
+10. Done: Harden error handling for model calls, stream cleanup, parser/final detection, file tools, command tools, git tools, and stream parsing.
+11. Done: Add token usage logging, compact trace logging, tagged observations, and disconnect cancellation.
+12. Done: Add short retry/backoff handling for transient model API errors.
+13. Done: Close approval/stop race gaps and include best-effort partial answers on stopped runs.
+14. Done: Split active stream run state into `run_state.py`.
+15. Later scope backend state by session/client before multi-user or class-hub use.

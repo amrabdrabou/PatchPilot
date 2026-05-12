@@ -1,7 +1,11 @@
+# Builds the system prompt that teaches PatchPilot its tools and rules.
 from backend.tool_registry import get_tool_descriptions
 
 
 def build_system_prompt():
+    """
+    Build the system instructions with the current tool descriptions.
+    """
     tool_descriptions = get_tool_descriptions()
 
     return f"""

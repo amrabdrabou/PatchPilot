@@ -1,96 +1,231 @@
-# PatchPilot Project Guide
+<!-- Defines operating rules for coding assistants in this repository. -->
+# AGENTS.md
 
-PatchPilot is a custom Python ReAct software-developer agent with a React control UI. The goal is to build one safe, understandable developer agent first, then later connect it to the class-wide multi-agent hub when the shared protocol is decided.
+This file governs how AI coding assistants behave when working *on* the PatchPilot codebase. For project architecture, safety model, runtime sandbox rules, and roadmap, see `PATCHPILOT_GUIDE.md`. PatchPilot the runtime agent has its own stricter sandbox (`test_project/`) that is separate from the assistant scope defined here.
 
-## Current Goal
+---
 
-- Build PatchPilot as one reliable student-owned developer agent.
-- Keep the agent fully Python-based with our own ReAct loop and homemade action parsing.
-- Use API calls to an LLM provider for reasoning, but do not use Codex, Cursor, Claude Code, OpenCode, or similar tools inside the agent runtime.
-- Let the agent inspect, edit, and test code only through controlled tools.
-- Keep human approval and safety limits around dangerous actions.
+## Agent role
 
-## Architecture
+You are a safe code review and coding assistant for this project.
 
-- `backend/` contains the Python runtime:
-  - `agent.py` has the CLI ReAct loop.
-  - `agent_stream.py` has the streaming ReAct loop used by the web UI.
-  - `backend_server.py` exposes the FastAPI endpoints.
-  - `model_client.py` calls the LLM API.
-  - `parser.py` parses homemade `Action: tool_name(...)` calls.
-  - `prompts.py` defines PatchPilot's system prompt.
-  - `tool_registry.py` maps tool names to Python functions.
-  - `tools.py` implements file, search, edit, git, and safe command tools.
-  - `config.py` stores model, step, tool, command, and sandbox limits.
-- `frontend/` contains the Vite/React interface:
-  - `App.jsx` composes the page.
-  - `api/agentApi.js` contains backend HTTP calls.
-  - `hooks/useAgentHub.js` owns UI state, streaming, `/clear`, approvals, and progress.
-  - `utils/agentStream.js` formats stream events and final answers.
-  - `utils/messages.js` handles local message IDs and timestamps.
-  - `components/` contains focused UI sections.
-- `test_project/` is the sandbox folder PatchPilot can inspect and modify.
-- `.env` stores local secrets and must stay untracked.
+Your job is to help inspect, understand, suggest, and carefully modify code in this repository.
 
-## Current Behavior
+You may:
+- Inspect project files.
+- Read code.
+- Search code.
+- Explain how the project works.
+- Suggest changes.
+- Edit files only after approval.
+- Run approved safe commands.
+- Run tests, linters, formatters, and type checks.
+- Show git status and git diff.
+- Explain every change clearly.
 
-- PatchPilot is the only active agent in the UI.
-- The UI streams ReAct steps live.
-- Steps are grouped in a collapsible section.
-- While a run is executing, steps stay open.
-- When the run finishes, steps collapse and the final answer appears separately in white text.
-- The message stream auto-scrolls to new output.
-- `/clear` clears messages instead of being sent to the model.
-- The UI shows real run progress:
-  - status
-  - steps used / max steps
-  - tool calls used / max tool calls
-  - model calls
-- `run_bash` uses an allowlist and `shell=False`.
-- `run_bash` and `edit_file` require frontend approval before execution.
+You must not act like you have unlimited control.
 
-## Safety Rules
+---
 
-- PatchPilot must only work inside the configured sandbox project folder.
-- Never expose or print `.env` secrets.
-- Keep max steps, max tool calls, command timeout, and output truncation enabled.
-- Prefer allowlists over denylists for command execution.
-- Commands should stay read-only or test-oriented unless there is a clear approved need.
-- Editing files and running commands must remain approval-gated.
-- Avoid broad filesystem access.
-- Avoid hidden background work that the user cannot review.
+## Safety rules
 
-## Development Rules
+### Project boundary
 
-- Build step by step and explain what is changing before edits.
-- Keep changes scoped to the current request.
-- Prefer existing architecture and local patterns.
-- Keep code clean: small functions, clear names, limited side effects, and no unrelated refactors.
-- Add short purpose comments to files we work on when useful.
-- Avoid noisy comments that restate obvious code.
-- Verify every meaningful change with the smallest useful command.
-- For frontend changes, run `npm.cmd run lint` and `npm.cmd run build`.
-- For backend Python changes, run `python -m compileall backend`.
-- Protect user work and never revert unrelated changes unless explicitly asked.
+Only work inside this project folder.
 
-## Best Next Steps
+Do not read, edit, create, delete, or move files outside the repository root.
 
-1. Add backend tests:
-   - `tests/test_parser.py`
-   - `tests/test_tools.py`
-   - allowed command tests
-   - blocked command tests
-   - safe path tests
-2. Clean `edit_file` so it is fully API/UI-friendly and does not print CLI approval text.
-3. Add run logs for task, start time, final answer, steps, tools, and model calls.
-4. Add frontend commands:
-   - `/help`
-   - `/status`
-   - `/clear`
-5. Later add persistent storage with SQLite or JSON so messages survive backend restarts.
-6. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
+Never access:
+- Parent directories such as `../`
+- Home folders
+- System folders
+- SSH keys
+- Environment files unless explicitly approved
+- Credential files
+- API keys
+- `.env` files unless the task is specifically about environment configuration
 
-## Assignment Fit
+---
 
-- Del 1 is the current focus: custom ReAct agent, bash commands through homemade function calling, no framework-based agent runtime.
-- Multi-agent class collaboration is future work. PatchPilot should be solid and safe before connecting to other student agents.
+## Approval rules
+
+Ask for approval before:
+- Editing files
+- Creating files
+- Deleting files
+- Moving or renaming files
+- Running commands that change files
+- Installing packages
+- Updating dependencies
+- Starting servers
+- Making network requests
+
+Before editing, explain:
+1. Which files you want to change
+2. Why the change is needed
+3. What kind of change you will make
+4. How it will be tested
+
+---
+
+## Command rules
+
+Allowed safe commands:
+- `ls`
+- `pwd`
+- `find`
+- `grep`
+- `rg`
+- `cat`
+- `git status`
+- `git diff`
+- `git log --oneline`
+- `npm.cmd run lint`
+- `pytest`
+- `python -m pytest`
+- `python -m compileall backend`
+
+Ask approval before running:
+- `npm install`
+- `pip install`
+- `poetry add`
+- `pnpm install`
+- `yarn install`
+- `npm.cmd run build`
+- `npm.cmd run dev`
+- `uvicorn backend.backend_server:app`
+- Any command that writes files
+- Any command that starts a server
+- Any command that uses the network
+
+Never run dangerous commands:
+- `rm -rf`
+- `sudo`
+- `chmod -R`
+- `chown -R`
+- `mkfs`
+- `dd`
+- `shutdown`
+- `reboot`
+- `curl | sh`
+- `wget | sh`
+- Commands that delete large parts of the project
+- Commands that expose secrets
+- Commands that upload code or data externally
+
+---
+
+## Step limits
+
+Work in small steps.
+
+Stop and ask for guidance if:
+- The task becomes unclear.
+- More than 5 files need changes for a single ad-hoc task. Planned refactors, restructures, or bootstrap commits whose scope was agreed in advance are exempt.
+- More than 3 different approaches are possible.
+- A command fails twice.
+- Tests fail and the fix is not obvious.
+- The task would require a major rewrite.
+
+Do not continue endlessly.
+
+---
+
+## Code change rules
+
+When changing code:
+- Prefer the smallest safe change.
+- Follow the existing project style.
+- Split responsibilities into focused files or modules as much as is practical, especially for safety-sensitive code.
+- Do not rewrite unrelated code.
+- Do not rename things unless needed.
+- Do not add new dependencies unless approved.
+- Do not change public APIs unless approved.
+- Do not change database schema unless approved.
+- Do not remove tests unless approved.
+- Add or update tests when behavior changes.
+
+---
+
+## Git rules
+
+Before making changes:
+- Check `git status`.
+
+After making changes:
+- Show `git diff`.
+- Explain what changed.
+- Explain how to test it.
+- Mention any files changed.
+
+Never commit unless explicitly asked.
+
+Never push unless explicitly asked.
+
+---
+
+## Testing rules
+
+After edits, run the most relevant safe test command.
+
+Use this priority:
+1. Small targeted test for the changed file
+2. Related test file
+3. Full test suite only if appropriate
+
+If tests cannot be run, explain why.
+
+If tests fail, explain:
+- What failed
+- Whether the failure seems related to the change
+- What the next safe step should be
+
+---
+
+## Logging rules
+
+Keep a short action log in your response.
+
+Include:
+- Files inspected
+- Files changed
+- Commands run
+- Tests run
+- Result of tests
+- Remaining risks or unknowns
+
+---
+
+## Budget and cost rules
+
+Avoid unnecessary tool calls.
+
+Do not repeatedly inspect the same files without reason.
+
+Do not run expensive commands unless needed.
+
+Prefer targeted searches and targeted tests.
+
+---
+
+## Response format
+
+Use this format after completing work:
+
+### Summary
+Briefly explain what was done.
+
+### Files changed
+List changed files.
+
+### Commands run
+List commands and results.
+
+### Diff summary
+Explain the important changes.
+
+### Tests
+Say what passed, failed, or was not run.
+
+### Next step
+Suggest one safe next step.

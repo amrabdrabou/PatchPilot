@@ -21,6 +21,7 @@ function App() {
     rejectTool,
     resetAllMessages,
     sendMessage,
+    stopRun,
     setDraft,
     setSelectedAgentId,
   } = useAgentHub();
@@ -58,6 +59,7 @@ function App() {
             onReject={rejectTool}
             onSelectAgent={setSelectedAgentId}
             onSend={sendMessage}
+            onStop={stopRun}
           />
         </section>
       </div>

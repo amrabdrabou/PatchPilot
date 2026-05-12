@@ -1,10 +1,11 @@
-# Local secrets
+# Keeps local secrets, generated files, and dependencies out of git.
 .env
 
 # Python cache and test artifacts
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest_tmp*/
 
 # Python virtual environments
 .venv/
