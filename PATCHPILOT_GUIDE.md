@@ -28,6 +28,7 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
   - `run_logger.py` writes structured JSONL records for completed UI and CLI runs.
   - `run_state.py` owns active web-run state, cancellation flags, pending approvals, and cleanup.
   - `stream_events.py` builds stream event payloads and compact trace entries.
+  - `trace_utils.py` builds shared compact trace entries for CLI and web run logs.
   - `tool_registry.py` maps tool names to Python functions.
   - `tools/` contains focused runtime tool modules:
     - `safety.py` handles sandbox paths and command allowlists.
@@ -78,6 +79,7 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 - Finished, stopped, and rejected stream runs are removed from `ACTIVE_RUNS`.
 - Active stream state is centralized in `backend/run_state.py` so the streaming loop can stay focused on orchestration.
 - Stream event payload and trace helpers are centralized in `backend/stream_events.py`.
+- CLI and web trace compaction share `backend/trace_utils.py`.
 - Transient model API errors use a short retry/backoff before the run fails safely.
 - Docker Compose bind-mounts `backend/`, `frontend/`, `logs/`, and `test_project/`.
 - The backend Docker image installs `git`, and Compose mounts `.git` read-only so `git_diff` and `git_status` can inspect sandbox changes.
@@ -156,14 +158,15 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 16. Done: Split active stream run state into `backend/run_state.py`.
 17. Done: Split stream event and trace helpers into `backend/stream_events.py`.
 18. Done: Split shared model-result normalization into `backend/model_results.py`.
-19. Done: Add frontend commands:
+19. Done: Split shared trace compaction into `backend/trace_utils.py`.
+20. Done: Add frontend commands:
    - Done: `/help`
    - Done: `/status`
    - Done: `/clear`
-20. Later add frontend tests for local commands, stream rendering, and approval controls.
-21. Later add persistent storage with SQLite or JSON so messages survive backend restarts.
-22. Later scope backend state by session/client before multi-user or class-hub use.
-23. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
+21. Later add frontend tests for local commands, stream rendering, and approval controls.
+22. Later add persistent storage with SQLite or JSON so messages survive backend restarts.
+23. Later scope backend state by session/client before multi-user or class-hub use.
+24. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
 
 ## Assignment Fit
 

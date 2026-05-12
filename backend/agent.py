@@ -8,26 +8,13 @@ from backend.model_results import (
 from backend.tool_registry import run_tool
 from backend.parser import is_final_answer, parse_action
 from backend.run_logger import build_run_log_record, stockholm_now_iso, write_run_log
+from backend.trace_utils import build_trace_entry
 
 
 APPROVAL_REQUIRED_TOOLS = {
     "run_bash",
     "edit_file",
 }
-
-MAX_TRACE_CONTENT_CHARS = 500
-
-
-def compact_content(content):
-    """
-    Limit CLI trace content before writing it to run logs.
-    """
-    text = str(content)
-
-    if len(text) <= MAX_TRACE_CONTENT_CHARS:
-        return text
-
-    return text[:MAX_TRACE_CONTENT_CHARS] + "\n... trace content truncated ..."
 
 
 def ask_cli_approval(tool_name, arguments):
@@ -67,17 +54,7 @@ def run_agent(user_task, max_steps=5, max_tool_calls=3):
         """
         Append one compact CLI trace entry.
         """
-        entry = {
-            "time": stockholm_now_iso(),
-            "step": step,
-            "type": event_type,
-            "content": compact_content(content),
-        }
-
-        if extra:
-            entry.update(extra)
-
-        trace.append(entry)
+        trace.append(build_trace_entry(step, event_type, content, extra))
 
     def log_cli_run(status, final_answer, steps):
         """

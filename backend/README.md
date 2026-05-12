@@ -13,10 +13,13 @@ The backend runs a custom ReAct software-developer agent. It owns the model call
 - `agent_stream.py` runs the streaming ReAct loop for the web UI.
 - `agent.py` runs the CLI ReAct loop.
 - `model_client.py` calls the LLM API.
+- `model_results.py` normalizes model results, token usage, observations, and stopped answers.
 - `prompts.py` defines PatchPilot's system prompt.
 - `parser.py` parses homemade `Action: tool_name(...)` calls.
 - `run_logger.py` writes structured JSONL records for completed UI and CLI runs.
 - `run_state.py` owns active web-run state, cancellation flags, pending approvals, and cleanup.
+- `stream_events.py` builds stream event payloads and SSE chunks.
+- `trace_utils.py` builds shared compact trace entries for CLI and web run logs.
 - `tool_registry.py` maps tool names to Python functions.
 - `tools/` contains focused modules for safety checks, file tools, command execution, and git inspection.
 - `config.py` stores model, step, tool, command, and sandbox limits.
@@ -87,6 +90,9 @@ python main.py
 - Runs stop at `MAX_STEPS` or `MAX_TOOL_CALLS`.
 - Terminal-state stream runs are removed from active run state to avoid stale run state.
 - Active stream state is centralized in `run_state.py` so `agent_stream.py` can focus on orchestration.
+- Stream event formatting is centralized in `stream_events.py`.
+- CLI and web trace compaction share `trace_utils.py`.
+- CLI and web observation tagging and token usage accumulation share `model_results.py`.
 - Expected model, tool, subprocess, filesystem, and logging failures are handled with safe error messages.
 - Transient model API errors use a short retry/backoff before failing safely.
 - Run logs include token usage totals and compact per-step traces.
@@ -190,4 +196,7 @@ Run backend tests with a project-local temp folder on Windows:
 12. Done: Add short retry/backoff handling for transient model API errors.
 13. Done: Close approval/stop race gaps and include best-effort partial answers on stopped runs.
 14. Done: Split active stream run state into `run_state.py`.
-15. Later scope backend state by session/client before multi-user or class-hub use.
+15. Done: Split stream event formatting into `stream_events.py`.
+16. Done: Split shared model-result handling into `model_results.py`.
+17. Done: Split shared trace compaction into `trace_utils.py`.
+18. Later scope backend state by session/client before multi-user or class-hub use.

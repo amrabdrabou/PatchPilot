@@ -121,6 +121,7 @@ Work in small steps.
 
 Stop and ask for guidance if:
 - The task becomes unclear.
+- You get stuck or cannot find a safe best-practice path forward.
 - More than 5 files need changes for a single ad-hoc task. Planned refactors, restructures, or bootstrap commits whose scope was agreed in advance are exempt.
 - More than 3 different approaches are possible.
 - A command fails twice.
@@ -136,6 +137,7 @@ Do not continue endlessly.
 When changing code:
 - Prefer the smallest safe change.
 - Follow the existing project style.
+- Use best practices for the language, framework, and project architecture.
 - Split responsibilities into focused files or modules as much as is practical, especially for safety-sensitive code.
 - Do not rewrite unrelated code.
 - Do not rename things unless needed.

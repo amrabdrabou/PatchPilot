@@ -1,10 +1,7 @@
 # Builds stream event payloads and compact trace entries.
 import json
 
-from backend.run_logger import stockholm_now_iso
-
-
-MAX_TRACE_CONTENT_CHARS = 500
+from backend.trace_utils import build_trace_entry
 
 
 def build_progress_payload(state):
@@ -20,33 +17,11 @@ def build_progress_payload(state):
     }
 
 
-def compact_content(content):
-    """
-    Limit trace content so run logs stay compact.
-    """
-    text = str(content)
-
-    if len(text) <= MAX_TRACE_CONTENT_CHARS:
-        return text
-
-    return text[:MAX_TRACE_CONTENT_CHARS] + "\n... trace content truncated ..."
-
-
 def record_trace(state, event_type, content, extra=None):
     """
     Append one compact trace entry to the run state.
     """
-    entry = {
-        "time": stockholm_now_iso(),
-        "step": state["step"],
-        "type": event_type,
-        "content": compact_content(content),
-    }
-
-    if extra:
-        entry.update(extra)
-
-    state["trace"].append(entry)
+    state["trace"].append(build_trace_entry(state["step"], event_type, content, extra))
 
 
 def make_event(event_type, content, extra=None):
