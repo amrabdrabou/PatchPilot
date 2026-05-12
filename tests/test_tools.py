@@ -61,7 +61,7 @@ def test_build_allowed_command_accepts_safe_commands(command, expected_args):
     [
         "",
         "python",
-        "python -c \"print(1)\"",
+        'python -c "print(1)"',
         "python -m http.server",
         "python -m pytest --collect-only",
         "python README.md",
@@ -97,7 +97,9 @@ def test_git_diff_uses_argv_without_shell(monkeypatch):
 
     def fake_run(*args, **kwargs):
         calls.append((args, kwargs))
-        return CompletedProcess(args=args[0], returncode=0, stdout="diff output", stderr="")
+        return CompletedProcess(
+            args=args[0], returncode=0, stdout="diff output", stderr=""
+        )
 
     monkeypatch.setattr("backend.tools.git.subprocess.run", fake_run)
 
@@ -117,7 +119,10 @@ def test_git_diff_reports_missing_git(monkeypatch):
 
 
 def test_git_diff_rejects_arguments():
-    assert git_diff("README.md") == "Error: git_diff does not accept arguments. Use git_diff()."
+    assert (
+        git_diff("README.md")
+        == "Error: git_diff does not accept arguments. Use git_diff()."
+    )
 
 
 def test_git_status_uses_argv_without_shell(monkeypatch):
@@ -125,7 +130,9 @@ def test_git_status_uses_argv_without_shell(monkeypatch):
 
     def fake_run(*args, **kwargs):
         calls.append((args, kwargs))
-        return CompletedProcess(args=args[0], returncode=0, stdout=" M file.py", stderr="")
+        return CompletedProcess(
+            args=args[0], returncode=0, stdout=" M file.py", stderr=""
+        )
 
     monkeypatch.setattr("backend.tools.git.subprocess.run", fake_run)
 
@@ -145,4 +152,7 @@ def test_git_status_reports_missing_git(monkeypatch):
 
 
 def test_git_status_rejects_arguments():
-    assert git_status("--short") == "Error: git_status does not accept arguments. Use git_status()."
+    assert (
+        git_status("--short")
+        == "Error: git_status does not accept arguments. Use git_status()."
+    )

@@ -46,7 +46,9 @@ def test_save_list_and_load_conversation(tmp_path):
     assert loaded == saved
     assert saved["title"] == "Fix the parser bug"
     assert saved["messages"] == messages
-    assert saved["created_at"].endswith("+01:00") or saved["created_at"].endswith("+02:00")
+    assert saved["created_at"].endswith("+01:00") or saved["created_at"].endswith(
+        "+02:00"
+    )
     assert saved["updated_at"] == saved["created_at"]
 
 

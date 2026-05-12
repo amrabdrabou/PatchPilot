@@ -17,7 +17,6 @@ from backend.context_window import compact_messages_for_context
 from backend.parser import is_final_answer, parse_action
 from backend.run_logger import build_run_log_record, write_run_log
 from backend.run_state import (
-    ACTIVE_RUNS,
     cleanup_run,
     clear_pending_tool,
     create_pending_tool,
@@ -76,7 +75,9 @@ def fail_run_safely(state, message):
     state["finished"] = True
     clear_pending_tool(state)
     record_trace(state, "error", message)
-    record_trace(state, "stopped", "Agent stopped because an internal error was handled safely.")
+    record_trace(
+        state, "stopped", "Agent stopped because an internal error was handled safely."
+    )
     log_stream_run(state, "error", message)
     cleanup_run(run_id)
 
@@ -197,10 +198,12 @@ def run_agent_until_pause(state):
         )
         record_trace(state, "assistant_message", assistant_message)
 
-        state["messages"].append({
-            "role": "assistant",
-            "content": assistant_message,
-        })
+        state["messages"].append(
+            {
+                "role": "assistant",
+                "content": assistant_message,
+            }
+        )
 
         if is_final_answer(assistant_message):
             state["finished"] = True
@@ -223,7 +226,7 @@ def run_agent_until_pause(state):
 
         if action is None:
             observation = (
-                'Error: No valid action found. '
+                "Error: No valid action found. "
                 'Use format: Action: tool_name("argument")'
             )
 
@@ -237,10 +240,12 @@ def run_agent_until_pause(state):
             )
             record_trace(state, "error", observation)
 
-            state["messages"].append({
-                "role": "user",
-                "content": observation,
-            })
+            state["messages"].append(
+                {
+                    "role": "user",
+                    "content": observation,
+                }
+            )
 
             continue
 
@@ -248,8 +253,7 @@ def run_agent_until_pause(state):
 
         if state["tool_calls"] >= state["max_tool_calls"]:
             observation = (
-                "Error: Tool call limit reached. "
-                "You must now give a Final Answer."
+                "Error: Tool call limit reached. You must now give a Final Answer."
             )
 
             yield make_event(
@@ -262,10 +266,12 @@ def run_agent_until_pause(state):
             )
             record_trace(state, "error", observation)
 
-            state["messages"].append({
-                "role": "user",
-                "content": observation,
-            })
+            state["messages"].append(
+                {
+                    "role": "user",
+                    "content": observation,
+                }
+            )
 
             continue
 
@@ -338,10 +344,12 @@ def run_agent_until_pause(state):
         )
         record_trace(state, "observation", observation)
 
-        state["messages"].append({
-            "role": "user",
-            "content": observation,
-        })
+        state["messages"].append(
+            {
+                "role": "user",
+                "content": observation,
+            }
+        )
 
     state["finished"] = True
     stopped_answer = build_stopped_answer(
@@ -469,10 +477,12 @@ def approve_pending_tool(run_id, approval_id):
     )
     record_trace(state, "observation", observation)
 
-    state["messages"].append({
-        "role": "user",
-        "content": observation,
-    })
+    state["messages"].append(
+        {
+            "role": "user",
+            "content": observation,
+        }
+    )
 
     yield from run_agent_until_pause(state)
 
@@ -506,7 +516,9 @@ def reject_pending_tool(run_id, approval_id):
 
     clear_pending_tool(state)
 
-    observation = build_observation(f"User rejected tool call: {tool_name}({arguments})")
+    observation = build_observation(
+        f"User rejected tool call: {tool_name}({arguments})"
+    )
 
     yield make_event(
         "approval_decision",
@@ -536,10 +548,12 @@ def reject_pending_tool(run_id, approval_id):
     )
     record_trace(state, "observation", observation)
 
-    state["messages"].append({
-        "role": "user",
-        "content": observation,
-    })
+    state["messages"].append(
+        {
+            "role": "user",
+            "content": observation,
+        }
+    )
 
     state["finished"] = True
     final_answer = (

@@ -80,7 +80,10 @@ def search_files(query: str) -> str:
         if not file_path.is_file():
             continue
 
-        if any(part in IGNORED_SEARCH_DIRS for part in file_path.relative_to(safety.BASE_DIR).parts):
+        if any(
+            part in IGNORED_SEARCH_DIRS
+            for part in file_path.relative_to(safety.BASE_DIR).parts
+        ):
             continue
 
         try:

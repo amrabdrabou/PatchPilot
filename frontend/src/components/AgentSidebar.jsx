@@ -6,6 +6,7 @@ function AgentSidebar({
   progress,
   selectedAgentId,
   onReset,
+  onDeleteConversation,
   onSelectConversation,
   onSelectAgent,
 }) {
@@ -74,19 +75,33 @@ function AgentSidebar({
                 </div>
               ) : (
                 conversations.map((conversation) => (
-                  <button
+                  <div
                     key={conversation.id}
-                    onClick={() => onSelectConversation(conversation.id)}
-                    className="group w-full border-l border-transparent px-3 py-1 text-left opacity-70 transition hover:border-[#3b494c] hover:opacity-100"
+                    className="group flex items-start gap-2 border-l border-transparent px-3 py-1 opacity-70 transition hover:border-[#3b494c] hover:opacity-100"
                   >
-                    <div className="truncate font-mono text-xs font-medium uppercase tracking-widest text-[#dce3f0]">
-                      {conversation.title}
-                    </div>
-                    <div className="mt-1 flex items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-widest text-[#bac9cc]/35">
-                      <span>{conversation.message_count} msgs</span>
-                      <span>{conversation.updated_at ?? ""}</span>
-                    </div>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => onSelectConversation(conversation.id)}
+                      className="min-w-0 flex-1 text-left"
+                      aria-label={`Open ${conversation.title}`}
+                    >
+                      <div className="min-w-0 truncate font-mono text-xs font-medium uppercase tracking-widest text-[#dce3f0]">
+                        {conversation.title}
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-widest text-[#bac9cc]/35">
+                        <span>{conversation.message_count} msgs</span>
+                        <span>{conversation.updated_at ?? ""}</span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteConversation(conversation.id)}
+                      className="shrink-0 font-mono text-[11px] text-[#ffb4ab]/60 transition hover:text-[#ffb4ab]"
+                      aria-label={`Delete ${conversation.title}`}
+                    >
+                      x
+                    </button>
+                  </div>
                 ))
               )}
             </div>

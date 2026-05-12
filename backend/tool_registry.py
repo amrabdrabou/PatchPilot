@@ -1,5 +1,13 @@
 # Maps model-requested tool names to safe Python functions.
-from backend.tools import list_files, read_file, run_bash, search_files, edit_file, git_diff, git_status
+from backend.tools import (
+    list_files,
+    read_file,
+    run_bash,
+    search_files,
+    edit_file,
+    git_diff,
+    git_status,
+)
 
 
 TOOLS = {
@@ -31,12 +39,12 @@ TOOLS = {
     "git_diff": {
         "function": git_diff,
         "description": "Shows the git diff for changed files in the project folder.",
-        "example": 'Action: git_diff()',
+        "example": "Action: git_diff()",
     },
     "git_status": {
         "function": git_status,
         "description": "Shows a short git status for the project folder. Takes no arguments.",
-        "example": 'Action: git_status()',
+        "example": "Action: git_status()",
     },
 }
 
@@ -66,10 +74,9 @@ def get_tool_descriptions():
 
     for index, (tool_name, tool_info) in enumerate(TOOLS.items(), start=1):
         descriptions.append(
-            f'{index}. {tool_name}(argument)\n'
-            f'   - {tool_info["description"]}\n'
-            f'   - Example: {tool_info["example"]}'
+            f"{index}. {tool_name}(argument)\n"
+            f"   - {tool_info['description']}\n"
+            f"   - Example: {tool_info['example']}"
         )
 
     return "\n\n".join(descriptions)
-

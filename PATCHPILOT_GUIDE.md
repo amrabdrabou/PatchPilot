@@ -30,7 +30,7 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
   - `run_state.py` owns active web-run state, cancellation flags, pending approvals, and cleanup.
   - `stream_events.py` builds stream event payloads and compact trace entries.
   - `trace_utils.py` builds shared compact trace entries for CLI and web run logs.
-  - `conversation_store.py` provides JSON storage helpers for planned saved conversation history.
+  - `conversation_store.py` provides JSON storage helpers for saved conversation history.
   - `tool_registry.py` maps tool names to Python functions.
   - `tools/` contains focused runtime tool modules:
     - `safety.py` handles sandbox paths and command allowlists.
@@ -62,7 +62,7 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 - Running web runs can be stopped by the user at the next safe checkpoint.
 - When the run finishes, steps collapse and the final answer appears separately in white text.
 - The message stream auto-scrolls to new output.
-- Saved conversation summaries appear in the left panel and can be loaded back into the message stream.
+- Saved conversation summaries appear in the left panel and can be loaded back into the message stream or deleted.
 - `/clear` is handled locally instead of being sent to the model; it archives the current message stream and then clears the visible stream.
 - `/help` and `/status` are handled locally instead of being sent to the model.
 - Task drafting uses a multi-line textarea with a client-side length cap.
@@ -219,7 +219,7 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
    - Done: Add frontend conversation list state, left-panel summaries, and conversation loading.
    - Done: Add `tests/test_conversation_store.py`, extend backend endpoint tests, and add frontend tests for `/clear` archive behavior and left-panel loading.
    - Done: Update `README.md`, `frontend/README.md`, and this guide.
-35. Later add a saved-conversation delete control in the frontend.
+35. Done: Add a saved-conversation delete control in the frontend.
 36. Later migrate conversation storage from JSON to SQLite when persistence needs grow.
 37. Later scope backend state by session/client before multi-user or class-hub use.
 38. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.

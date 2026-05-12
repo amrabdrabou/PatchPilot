@@ -78,7 +78,9 @@ def build_allowed_command(command: str) -> tuple[list[str] | None, str | None]:
     )
 
 
-def build_allowed_python_command(parts: list[str]) -> tuple[list[str] | None, str | None]:
+def build_allowed_python_command(
+    parts: list[str],
+) -> tuple[list[str] | None, str | None]:
     """
     Allow Python scripts and pytest module runs, but not arbitrary inline code.
     """

@@ -42,7 +42,10 @@ def test_stream_endpoint_returns_sse(monkeypatch):
     response = client.post("/run-agent-stream", json={"task": "hello"})
 
     assert response.status_code == 200
-    assert 'data: {"type": "start", "content": "Agent started.", "run_id": "run-1"}' in response.text
+    assert (
+        'data: {"type": "start", "content": "Agent started.", "run_id": "run-1"}'
+        in response.text
+    )
 
 
 def test_run_agent_stream_rejects_oversized_task():
@@ -104,7 +107,9 @@ def test_load_conversation_endpoint_sets_current_messages(monkeypatch):
 
 def test_load_conversation_endpoint_reports_missing(monkeypatch):
     client = TestClient(backend_server.app)
-    monkeypatch.setattr(backend_server, "get_conversation", lambda conversation_id: None)
+    monkeypatch.setattr(
+        backend_server, "get_conversation", lambda conversation_id: None
+    )
 
     response = client.get("/conversations/missing")
 
@@ -193,7 +198,9 @@ def test_delete_conversation_endpoint(monkeypatch):
 
 def test_delete_conversation_endpoint_reports_missing(monkeypatch):
     client = TestClient(backend_server.app)
-    monkeypatch.setattr(backend_server, "delete_conversation", lambda conversation_id: False)
+    monkeypatch.setattr(
+        backend_server, "delete_conversation", lambda conversation_id: False
+    )
 
     response = client.delete("/conversations/missing")
 

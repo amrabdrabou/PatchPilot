@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   archiveCurrentConversation,
   approveToolCall,
+  deleteConversation,
   getState,
   listConversations,
   loadConversation,
@@ -202,6 +203,18 @@ export function useAgentHub() {
     }
   }, [setLimits, setMessages, setRunProgress]);
 
+  const deleteSavedConversation = useCallback(async (conversationId) => {
+    try {
+      const data = await deleteConversation(conversationId);
+
+      setConversations(data.conversations ?? []);
+      setStatus("Conversation deleted");
+    } catch (error) {
+      setStatus("Failed to delete conversation");
+      console.error(error);
+    }
+  }, []);
+
   const approveTool = useCallback(async () => {
     if (!pendingApproval) return;
 
@@ -309,6 +322,7 @@ export function useAgentHub() {
     totalMessages,
     approveTool,
     rejectTool,
+    deleteSavedConversation,
     loadSavedConversation,
     resetAllMessages,
     sendMessage,

@@ -19,6 +19,7 @@ function App() {
     status,
     totalMessages,
     approveTool,
+    deleteSavedConversation,
     rejectTool,
     loadSavedConversation,
     resetAllMessages,
@@ -38,6 +39,7 @@ function App() {
           progress={progress}
           selectedAgentId={selectedAgentId}
           onReset={resetAllMessages}
+          onDeleteConversation={deleteSavedConversation}
           onSelectConversation={loadSavedConversation}
           onSelectAgent={setSelectedAgentId}
         />

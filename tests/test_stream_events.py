@@ -37,7 +37,9 @@ def test_record_trace_compacts_long_content():
     """
     state = {"step": 2, "trace": []}
 
-    stream_events.record_trace(state, "assistant_message", "x" * 600, {"tool_name": "read_file"})
+    stream_events.record_trace(
+        state, "assistant_message", "x" * 600, {"tool_name": "read_file"}
+    )
 
     assert state["trace"][0]["step"] == 2
     assert state["trace"][0]["type"] == "assistant_message"

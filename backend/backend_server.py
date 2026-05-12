@@ -209,6 +209,7 @@ def run_agent_stream_endpoint(request: Request, body: AgentRunRequest):
         media_type="text/event-stream",
     )
 
+
 @app.post("/approve-tool")
 def approve_tool_endpoint(request: Request, body: ApprovalRequest):
     """

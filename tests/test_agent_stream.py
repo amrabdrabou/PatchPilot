@@ -1,10 +1,10 @@
 # Verifies streamed run lifecycle, stopping, and active-run cleanup.
 import backend.agent_stream as agent_stream
-from backend.run_state import request_run_stop
+from backend.run_state import ACTIVE_RUNS, request_run_stop
 
 
 def setup_function():
-    agent_stream.ACTIVE_RUNS.clear()
+    ACTIVE_RUNS.clear()
 
 
 def test_final_run_is_removed_from_active_runs(monkeypatch):
@@ -19,7 +19,7 @@ def test_final_run_is_removed_from_active_runs(monkeypatch):
 
     assert events[-1]["type"] == "final"
     assert events[-1]["content"] == "Final Answer: done"
-    assert agent_stream.ACTIVE_RUNS == {}
+    assert ACTIVE_RUNS == {}
 
 
 def test_final_run_logs_token_usage_and_trace(monkeypatch):
@@ -87,7 +87,7 @@ def test_step_limit_run_is_removed_from_active_runs(monkeypatch):
 
     assert events[-1]["type"] == "stopped"
     assert "maximum number of steps" in events[-1]["content"]
-    assert agent_stream.ACTIVE_RUNS == {}
+    assert ACTIVE_RUNS == {}
 
 
 def test_step_limit_includes_best_effort_assistant_message(monkeypatch):
@@ -114,7 +114,7 @@ def test_approval_pause_keeps_run_active(monkeypatch):
     events = list(agent_stream.start_agent_stream("edit", max_steps=2))
 
     assert events[-1]["type"] == "approval_required"
-    assert len(agent_stream.ACTIVE_RUNS) == 1
+    assert len(ACTIVE_RUNS) == 1
 
 
 def test_rejected_tool_run_is_removed_from_active_runs(monkeypatch):
@@ -135,7 +135,7 @@ def test_rejected_tool_run_is_removed_from_active_runs(monkeypatch):
     )
 
     assert reject_events[-1]["type"] == "final"
-    assert agent_stream.ACTIVE_RUNS == {}
+    assert ACTIVE_RUNS == {}
 
 
 def test_rejected_tool_uses_blocked_observation(monkeypatch):
@@ -173,7 +173,7 @@ def test_stop_request_stops_and_removes_run(monkeypatch):
 
     assert events[-1]["type"] == "stopped"
     assert "user requested stop" in events[-1]["content"]
-    assert agent_stream.ACTIVE_RUNS == {}
+    assert ACTIVE_RUNS == {}
 
 
 def test_stop_before_tool_execution_does_not_run_tool(monkeypatch):
@@ -200,7 +200,7 @@ def test_stop_before_tool_execution_does_not_run_tool(monkeypatch):
 
     assert stopped_event["type"] == "stopped"
     assert calls == []
-    assert agent_stream.ACTIVE_RUNS == {}
+    assert ACTIVE_RUNS == {}
 
 
 def test_approved_tool_clears_pending_before_execution(monkeypatch):
@@ -214,7 +214,7 @@ def test_approved_tool_clears_pending_before_execution(monkeypatch):
 
     events = list(agent_stream.start_agent_stream("edit", max_steps=2))
     approval_event = events[-1]
-    state = agent_stream.ACTIVE_RUNS[approval_event["run_id"]]
+    state = ACTIVE_RUNS[approval_event["run_id"]]
 
     def fake_run_tool(tool_name, arguments):
         pending_seen_by_tool.append(state["pending_tool"])
@@ -259,7 +259,7 @@ def test_stop_after_approval_decision_does_not_run_tool(monkeypatch):
 
     assert stopped_event["type"] == "stopped"
     assert calls == []
-    assert agent_stream.ACTIVE_RUNS == {}
+    assert ACTIVE_RUNS == {}
 
 
 def test_stop_request_reports_missing_run():
@@ -278,7 +278,7 @@ def test_model_error_stops_and_removes_run(monkeypatch):
     assert events[-2]["type"] == "error"
     assert events[-2]["content"] == "Model call failed: RuntimeError."
     assert events[-1]["type"] == "stopped"
-    assert agent_stream.ACTIVE_RUNS == {}
+    assert ACTIVE_RUNS == {}
 
 
 def test_model_call_cancelled_routes_to_stop_not_error(monkeypatch):
@@ -294,7 +294,7 @@ def test_model_call_cancelled_routes_to_stop_not_error(monkeypatch):
     assert "user requested stop" in events[-1]["content"]
     error_events = [event for event in events if event["type"] == "error"]
     assert error_events == []
-    assert agent_stream.ACTIVE_RUNS == {}
+    assert ACTIVE_RUNS == {}
 
 
 def test_log_failure_does_not_break_final_run(monkeypatch):
@@ -312,4 +312,4 @@ def test_log_failure_does_not_break_final_run(monkeypatch):
     events = list(agent_stream.start_agent_stream("finish", max_steps=2))
 
     assert events[-1]["type"] == "final"
-    assert agent_stream.ACTIVE_RUNS == {}
+    assert ACTIVE_RUNS == {}

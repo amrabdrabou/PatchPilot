@@ -26,7 +26,7 @@ describe("MessageStream", () => {
     render(<MessageStream agentMap={AGENT_MAP} messages={[]} />);
 
     expect(
-      screen.getByText("No messages yet. Send one command to start the simulation.")
+      screen.getByText("No messages yet. Describe a task to start PatchPilot.")
     ).toBeInTheDocument();
   });
 

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   archiveCurrentConversation,
   approveToolCall,
+  deleteConversation,
   getState,
   listConversations,
   loadConversation,
@@ -20,6 +21,7 @@ import { useAgentHub } from "./useAgentHub";
 vi.mock("../api/agentApi", () => ({
   archiveCurrentConversation: vi.fn(),
   approveToolCall: vi.fn(),
+  deleteConversation: vi.fn(),
   getState: vi.fn(),
   listConversations: vi.fn(),
   loadConversation: vi.fn(),
@@ -53,6 +55,10 @@ beforeEach(() => {
   loadConversation.mockResolvedValue({
     ...INITIAL_STATE,
     messages: [{ agentId: "user", text: "saved", type: "user_task" }],
+  });
+  deleteConversation.mockResolvedValue({
+    conversations: [{ id: "conv-2", title: "Remaining" }],
+    deleted: true,
   });
   resetMessages.mockResolvedValue(INITIAL_STATE);
   startAgentRun.mockResolvedValue({ ok: true });
@@ -140,6 +146,20 @@ describe("useAgentHub", () => {
       { agentId: "user", text: "saved", type: "user_task" },
     ]);
     expect(result.current.status).toBe("Conversation loaded");
+  });
+
+  test("deletes a saved conversation from the sidebar list", async () => {
+    const { result } = await renderLoadedHub();
+
+    await act(async () => {
+      await result.current.deleteSavedConversation("conv-1");
+    });
+
+    expect(deleteConversation).toHaveBeenCalledWith("conv-1");
+    expect(result.current.conversations).toEqual([
+      { id: "conv-2", title: "Remaining" },
+    ]);
+    expect(result.current.status).toBe("Conversation deleted");
   });
 
   test("sends a task and applies final stream updates", async () => {

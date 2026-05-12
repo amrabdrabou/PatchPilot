@@ -6,10 +6,12 @@ def test_normalize_model_result_accepts_structured_result():
     """
     Structured model results return content plus usage metadata.
     """
-    content, usage = model_results.normalize_model_result({
-        "content": "Final Answer: done",
-        "usage": {"total_tokens": 3},
-    })
+    content, usage = model_results.normalize_model_result(
+        {
+            "content": "Final Answer: done",
+            "usage": {"total_tokens": 3},
+        }
+    )
 
     assert content == "Final Answer: done"
     assert usage == {"total_tokens": 3}
@@ -19,9 +21,9 @@ def test_normalize_model_result_accepts_plain_string():
     """
     Plain strings are supported for tests and simple callers.
     """
-    content, usage = model_results.normalize_model_result("Action: read_file(\"a.py\")")
+    content, usage = model_results.normalize_model_result('Action: read_file("a.py")')
 
-    assert content == "Action: read_file(\"a.py\")"
+    assert content == 'Action: read_file("a.py")'
     assert usage == {}
 
 

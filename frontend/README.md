@@ -13,7 +13,7 @@ The UI handles:
 - approval prompts for tool calls
 - stop requests for running web runs
 - run progress and limits
-- saved conversations in the left panel
+- saved conversations in the left panel with load and delete controls
 - `/clear` archive-and-clear behavior
 - `/help`
 - `/status`

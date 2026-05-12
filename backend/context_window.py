@@ -32,7 +32,7 @@ def truncate_content(content, max_chars):
     if max_chars <= len(marker):
         return text[:max_chars]
 
-    return text[:max_chars - len(marker)] + marker
+    return text[: max_chars - len(marker)] + marker
 
 
 def truncate_message(message, max_message_chars):
@@ -69,7 +69,9 @@ def compact_messages_for_context(
     if messages_char_count(messages) <= max_chars:
         return messages, 0
 
-    system_messages = [message for message in messages if message.get("role") == "system"]
+    system_messages = [
+        message for message in messages if message.get("role") == "system"
+    ]
     non_system_messages = [
         message for message in messages if message.get("role") != "system"
     ]
@@ -94,10 +96,12 @@ def compact_messages_for_context(
         )
 
     if omitted_messages:
-        compacted.append({
-            "role": "user",
-            "content": build_compaction_summary(omitted_messages),
-        })
+        compacted.append(
+            {
+                "role": "user",
+                "content": build_compaction_summary(omitted_messages),
+            }
+        )
 
     compacted.extend(
         truncate_message(message, max_message_chars) for message in recent_messages

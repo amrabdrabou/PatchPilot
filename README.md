@@ -13,7 +13,7 @@ PatchPilot is a custom Python ReAct software-developer agent with a React contro
 - Shows live run progress in the UI: status, steps, tool calls, and model calls.
 - Supports stopping web runs at safe checkpoints.
 - Supports multi-line task drafts with a client-side length cap.
-- Archives `/clear` conversations into local JSON-backed history and shows saved conversations in the left panel.
+- Archives `/clear` conversations into local JSON-backed history and lets saved conversations be loaded or deleted from the left panel.
 - Logs token usage, context compaction counts, and compact per-step traces for completed, stopped, rejected, and handled-error runs.
 - Retries transient model API failures before failing safely.
 - Keeps active stream run state in a focused backend module.
@@ -145,7 +145,7 @@ Do not share the output of `docker compose config`; Docker may expand values fro
 
 ## Logs
 
-- Saved conversations are written to `data/conversations.json`, which is ignored by git.
+- Saved conversations are written to `data/conversations.json`, which is ignored by git and can be deleted from the UI.
 - Command requests are written to `logs/commands.log`.
 - Completed, stopped, rejected, and handled-error UI/CLI runs are written to `logs/runs.jsonl`.
 - Run logs include task, final answer, step/tool/model counts, token usage, tool usage, context compaction counts, and compact trace entries.
@@ -200,7 +200,7 @@ GitHub Actions runs backend and frontend checks on pushes and pull requests:
 10. Done: Add frontend hook-level tests for `useAgentHub`.
 11. Done: Add GitHub Actions CI for backend and frontend checks.
 12. Done: Add JSON-backed saved conversation history with backend endpoints and left-panel loading.
-13. Later add a saved-conversation delete control in the frontend.
+13. Done: Add a saved-conversation delete control in the frontend.
 14. Later migrate conversation storage from JSON to SQLite.
 15. Later scope backend state by session/client before multi-user or class-hub use.
 16. Later add the class-hub integration layer for shared agent communication.

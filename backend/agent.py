@@ -117,7 +117,9 @@ def run_agent(user_task, max_steps=5, max_tool_calls=3):
             model_calls += 1
         except Exception as error:
             logger.exception("Model call failed for CLI run %s", run_id)
-            final_answer = f"Agent stopped after a handled model error: {type(error).__name__}."
+            final_answer = (
+                f"Agent stopped after a handled model error: {type(error).__name__}."
+            )
             print(final_answer)
             record_trace(step + 1, "error", final_answer)
             log_cli_run("error", final_answer, step + 1)
@@ -126,10 +128,12 @@ def run_agent(user_task, max_steps=5, max_tool_calls=3):
         print(assistant_message)
         record_trace(step + 1, "assistant_message", assistant_message)
 
-        messages.append({
-            "role": "assistant",
-            "content": assistant_message,
-        })
+        messages.append(
+            {
+                "role": "assistant",
+                "content": assistant_message,
+            }
+        )
 
         if is_final_answer(assistant_message):
             print("\nAgent finished.")
@@ -146,12 +150,14 @@ def run_agent(user_task, max_steps=5, max_tool_calls=3):
         action = parse_action(assistant_message)
 
         if action is None:
-            observation = "Error: No valid action found. Use format: Action: tool_name(\"argument\")"
+            observation = 'Error: No valid action found. Use format: Action: tool_name("argument")'
             record_trace(step + 1, "error", observation)
 
         else:
             if tool_calls >= max_tool_calls:
-                observation = "Error: Tool call limit reached. You must now give a Final Answer."
+                observation = (
+                    "Error: Tool call limit reached. You must now give a Final Answer."
+                )
                 record_trace(step + 1, "error", observation)
 
             else:
@@ -166,7 +172,9 @@ def run_agent(user_task, max_steps=5, max_tool_calls=3):
                     {"tool_name": tool_name},
                 )
 
-                if tool_name in APPROVAL_REQUIRED_TOOLS and not ask_cli_approval(tool_name, arguments):
+                if tool_name in APPROVAL_REQUIRED_TOOLS and not ask_cli_approval(
+                    tool_name, arguments
+                ):
                     result = f"User rejected tool call: {tool_name}({arguments})"
                 else:
                     try:
@@ -177,7 +185,9 @@ def run_agent(user_task, max_steps=5, max_tool_calls=3):
                             run_id,
                             tool_name,
                         )
-                        result = f"Error: Tool execution failed: {type(error).__name__}."
+                        result = (
+                            f"Error: Tool execution failed: {type(error).__name__}."
+                        )
                     tool_calls += 1
                     tool_usage[tool_name] = tool_usage.get(tool_name, 0) + 1
 
@@ -186,10 +196,12 @@ def run_agent(user_task, max_steps=5, max_tool_calls=3):
 
         print(observation)
 
-        messages.append({
-            "role": "user",
-            "content": observation,
-        })
+        messages.append(
+            {
+                "role": "user",
+                "content": observation,
+            }
+        )
 
     print("\nAgent stopped because it reached the maximum number of steps.")
     print(f"Model calls used: {model_calls}")

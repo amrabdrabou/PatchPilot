@@ -24,7 +24,7 @@ function MessageStream({ agentMap, messages }) {
       <div className="mx-auto max-w-6xl divide-y divide-[#3b494c]/20">
         {messages.length === 0 ? (
           <div className="flex min-h-[36vh] items-center justify-center border border-dashed border-[#3b494c]/25 bg-white/[0.02] p-6 text-center font-mono text-xs uppercase tracking-widest text-[#bac9cc]/40">
-            No messages yet. Send one command to start the simulation.
+            No messages yet. Describe a task to start PatchPilot.
           </div>
         ) : (
           messages.map((message) => (

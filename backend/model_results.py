@@ -25,7 +25,9 @@ def build_observation(result):
     """
     text = str(result)
 
-    if text.startswith("Blocked command:") or text.startswith("User rejected tool call:"):
+    if text.startswith("Blocked command:") or text.startswith(
+        "User rejected tool call:"
+    ):
         return f"Observation [blocked]: {text}"
 
     if text.startswith("Error:"):

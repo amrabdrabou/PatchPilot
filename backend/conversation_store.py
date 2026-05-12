@@ -86,13 +86,15 @@ def list_conversation_summaries(store_file=CONVERSATION_STORE_FILE):
     summaries = []
 
     for conversation in list_conversations(store_file):
-        summaries.append({
-            "id": conversation.get("id"),
-            "title": conversation.get("title", UNTITLED_CONVERSATION),
-            "created_at": conversation.get("created_at"),
-            "updated_at": conversation.get("updated_at"),
-            "message_count": len(conversation.get("messages", [])),
-        })
+        summaries.append(
+            {
+                "id": conversation.get("id"),
+                "title": conversation.get("title", UNTITLED_CONVERSATION),
+                "created_at": conversation.get("created_at"),
+                "updated_at": conversation.get("updated_at"),
+                "message_count": len(conversation.get("messages", [])),
+            }
+        )
 
     return summaries
 

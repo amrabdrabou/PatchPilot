@@ -29,6 +29,7 @@ function renderSidebar(overrides = {}) {
     ],
     messages: [],
     onReset: vi.fn(),
+    onDeleteConversation: vi.fn(),
     onSelectAgent: vi.fn(),
     onSelectConversation: vi.fn(),
     progress: PROGRESS,
@@ -52,9 +53,18 @@ describe("AgentSidebar", () => {
     expect(screen.getByText("Conversations")).toBeInTheDocument();
     expect(screen.getByText("Saved parser fix")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Saved parser fix/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Saved parser fix" }));
 
     expect(props.onSelectConversation).toHaveBeenCalledWith("conv-1");
+  });
+
+  test("deletes a saved conversation without loading it", () => {
+    const props = renderSidebar();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Saved parser fix" }));
+
+    expect(props.onDeleteConversation).toHaveBeenCalledWith("conv-1");
+    expect(props.onSelectConversation).not.toHaveBeenCalled();
   });
 
   test("renders an empty conversation state", () => {

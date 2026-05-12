@@ -43,7 +43,10 @@ def test_read_file_reports_non_utf8_files(monkeypatch, tmp_path):
     monkeypatch.setattr(safety, "BASE_DIR", tmp_path)
     (tmp_path / "binary.bin").write_bytes(b"\xff\xfe")
 
-    assert file_tools.read_file("binary.bin") == "Error: binary.bin is not a UTF-8 text file."
+    assert (
+        file_tools.read_file("binary.bin")
+        == "Error: binary.bin is not a UTF-8 text file."
+    )
 
 
 def test_search_files_skips_binary_files(monkeypatch, tmp_path):

@@ -18,7 +18,9 @@ def test_run_bash_logs_blocked_commands(monkeypatch, tmp_path):
 def test_run_bash_logs_stockholm_timestamp(monkeypatch, tmp_path):
     log_file = tmp_path / "commands.log"
     monkeypatch.setattr(command_tools, "COMMAND_LOG_FILE", log_file)
-    monkeypatch.setattr(command_tools, "stockholm_now_iso", lambda: "2026-05-11T12:00:00+02:00")
+    monkeypatch.setattr(
+        command_tools, "stockholm_now_iso", lambda: "2026-05-11T12:00:00+02:00"
+    )
 
     command_tools.run_bash("rm -rf .")
 
@@ -82,12 +84,19 @@ def test_run_bash_reports_missing_program(monkeypatch, tmp_path):
 
     monkeypatch.setattr(command_tools.subprocess, "run", fake_run)
 
-    assert command_tools.run_bash("pytest") == "Error: command program is not installed: pytest."
+    assert (
+        command_tools.run_bash("pytest")
+        == "Error: command program is not installed: pytest."
+    )
 
 
 def test_log_command_failure_does_not_raise(monkeypatch, tmp_path):
     blocked_log_path = tmp_path / "missing" / "commands.log"
     monkeypatch.setattr(command_tools, "COMMAND_LOG_FILE", blocked_log_path)
-    monkeypatch.setattr(command_tools.Path, "open", lambda *args, **kwargs: (_ for _ in ()).throw(OSError()))
+    monkeypatch.setattr(
+        command_tools.Path,
+        "open",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError()),
+    )
 
     command_tools.log_command("pytest", "ALLOWED")
