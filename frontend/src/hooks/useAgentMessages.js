@@ -2,6 +2,14 @@
 import { useCallback, useState } from "react";
 import { createLocalMessageId, createMessageTimestamp } from "../utils/messages";
 
+function isTraceMessage(message) {
+  return message.type === "agent_trace" || message.type === "agent_trace_final";
+}
+
+function buildTraceParts(message, addedText) {
+  return [...(message.traceParts ?? (message.text ? [message.text] : [])), addedText];
+}
+
 export function useAgentMessages() {
   const [messages, setMessages] = useState([]);
 
@@ -17,11 +25,17 @@ export function useAgentMessages() {
     setMessages((currentMessages) =>
       currentMessages.map((message) =>
         message.id === messageId
-          ? {
-              ...message,
-              text: `${message.text}${addedText}`,
-              type: nextType ?? message.type,
-            }
+          ? isTraceMessage(message)
+            ? {
+                ...message,
+                traceParts: buildTraceParts(message, addedText),
+                type: nextType ?? message.type,
+              }
+            : {
+                ...message,
+                text: `${message.text}${addedText}`,
+                type: nextType ?? message.type,
+              }
           : message
       )
     );
@@ -51,6 +65,10 @@ export function useAgentMessages() {
         text,
         type,
       };
+
+      if (type === "agent_trace") {
+        newMessage.traceParts = text ? [text] : [];
+      }
 
       setMessages((currentMessages) => [...currentMessages, newMessage]);
 

@@ -86,6 +86,23 @@ describe("readAgentStream", () => {
     ]);
   });
 
+  test("dispatches a trailing event without a final blank line", async () => {
+    const { calls, handlers } = createHandlers();
+    const response = createStreamResponse([
+      'data: {"type":"final","content":"Final Answer: trailing","run_id":"run-1"}',
+    ]);
+
+    await readAgentStream(response, "trace-1", handlers);
+
+    expect(calls.finished).toEqual([
+      {
+        label: "FINAL ANSWER",
+        text: "trailing",
+        traceId: "trace-1",
+      },
+    ]);
+  });
+
   test("rejects failed responses", async () => {
     const { handlers } = createHandlers();
     const response = createStreamResponse([], { ok: false, status: 500 });

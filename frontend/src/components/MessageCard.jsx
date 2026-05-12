@@ -17,6 +17,14 @@ function getTracePreview(text) {
   };
 }
 
+function getMessageText(message) {
+  if (message.traceParts) {
+    return message.traceParts.join("");
+  }
+
+  return message.text || "";
+}
+
 function MessageCard({ message, agentMap }) {
   const [stepsOpen, setStepsOpen] = useState(message.type === "agent_trace");
   const stepsRef = useRef(null);
@@ -42,7 +50,8 @@ function MessageCard({ message, agentMap }) {
     ? "text-[#c3f5ff]"
     : "text-[#dce3f0]/85";
 
-  const tracePreview = getTracePreview(message.text || "");
+  const messageText = getMessageText(message);
+  const tracePreview = getTracePreview(messageText);
   const messageTime = formatMessageTimestamp(message.createdAt);
 
   useEffect(() => {
@@ -54,7 +63,7 @@ function MessageCard({ message, agentMap }) {
       top: stepsElement.scrollHeight,
       behavior: "smooth",
     });
-  }, [message.text, stepsOpen]);
+  }, [messageText, stepsOpen]);
 
   return (
     <article className="group border-l border-[#3b494c]/20 py-3 pl-3 transition hover:border-[#00e5ff]/35">
@@ -100,7 +109,7 @@ function MessageCard({ message, agentMap }) {
                 ref={stepsRef}
                 className={`mt-2 max-h-72 overflow-y-auto whitespace-pre-wrap break-words bg-white/[0.02] p-2 font-mono text-xs leading-5 ${textColor}`}
               >
-                {message.text || "Running agent..."}
+                {messageText || "Running agent..."}
               </pre>
             )}
 

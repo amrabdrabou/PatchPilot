@@ -69,6 +69,8 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
   - tool calls used / max tool calls
   - model calls
 - Stream runs request cancellation if the browser disconnects mid-stream.
+- The frontend stream reader also processes a final buffered SSE event if the stream closes without a trailing blank line.
+- Frontend trace messages store streamed chunks separately so appends do not repeatedly concatenate one growing string.
 - Run logs include token usage totals, context compaction counts, and a compact per-step trace.
 - Long runs compact older conversation history before model calls so recent context stays under the configured budget.
 - Observations are tagged as success, error, or blocked so the model can react more reliably.
