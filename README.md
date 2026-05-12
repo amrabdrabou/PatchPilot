@@ -16,6 +16,7 @@ PatchPilot is a custom Python ReAct software-developer agent with a React contro
 - Retries transient model API failures before failing safely.
 - Keeps active stream run state in a focused backend module.
 - Shares model-result handling, stream event formatting, and trace compaction through focused backend helpers.
+- Compacts old conversation history before model calls when runs get long.
 
 ## Project Structure
 
@@ -42,6 +43,7 @@ PatchPilot is designed to control code tasks, but not with unlimited power.
 - Finished, stopped, and rejected stream runs are removed from active run state.
 - Active stream run state is centralized so cancellation and cleanup are easier to test.
 - CLI and web runs share observation tagging, token usage accumulation, and compact trace formatting.
+- Long runs compact old history before model calls to reduce context-length failures.
 - Observations are tagged as success, error, or blocked.
 - Expected model, tool, subprocess, filesystem, and logging failures return safe errors.
 
@@ -179,7 +181,8 @@ npm.cmd run build
 4. Done: Add `/help` and `/status` frontend commands.
 5. Done: Add stop endpoint, active-run cleanup, tagged observations, token usage logging, compact traces, disconnect cancellation, and transient model retry/backoff.
 6. Done: Split active run state, stream event formatting, model-result handling, and trace compaction into focused backend modules.
-7. Later add frontend tests for local commands, stream rendering, and approval controls.
-8. Later add persistent storage so messages survive backend restarts.
-9. Later scope backend state by session/client before multi-user or class-hub use.
-10. Later add the class-hub integration layer for shared agent communication.
+7. Done: Add deterministic context-window compaction before model calls.
+8. Later add frontend tests for local commands, stream rendering, and approval controls.
+9. Later add persistent storage so messages survive backend restarts.
+10. Later scope backend state by session/client before multi-user or class-hub use.
+11. Later add the class-hub integration layer for shared agent communication.

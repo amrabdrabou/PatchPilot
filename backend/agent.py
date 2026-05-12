@@ -5,6 +5,12 @@ from backend.model_results import (
     build_observation,
     normalize_model_result,
 )
+from backend.config import (
+    CONTEXT_KEEP_RECENT_MESSAGES,
+    MAX_CONTEXT_CHARS,
+    MAX_CONTEXT_MESSAGE_CHARS,
+)
+from backend.context_window import compact_messages_for_context
 from backend.tool_registry import run_tool
 from backend.parser import is_final_answer, parse_action
 from backend.run_logger import build_run_log_record, stockholm_now_iso, write_run_log
@@ -86,6 +92,20 @@ def run_agent(user_task, max_steps=5, max_tool_calls=3):
         print(f"\n--- Step {step + 1} ---")
 
         try:
+            messages, compacted_count = compact_messages_for_context(
+                messages,
+                MAX_CONTEXT_CHARS,
+                CONTEXT_KEEP_RECENT_MESSAGES,
+                MAX_CONTEXT_MESSAGE_CHARS,
+            )
+
+            if compacted_count:
+                record_trace(
+                    step + 1,
+                    "context_compaction",
+                    f"Compacted {compacted_count} older messages before model call.",
+                )
+
             assistant_message, usage = normalize_model_result(ask_model(messages))
             add_token_usage(token_usage, usage)
             model_calls += 1

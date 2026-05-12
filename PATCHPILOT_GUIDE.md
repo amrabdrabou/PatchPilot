@@ -21,6 +21,7 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
   - `agent.py` has the CLI ReAct loop.
   - `agent_stream.py` has the streaming ReAct loop used by the web UI.
   - `backend_server.py` exposes the FastAPI endpoints.
+  - `context_window.py` compacts old conversation history before model calls.
   - `model_client.py` calls the LLM API.
   - `model_results.py` normalizes model results, token usage, observations, and stopped answers.
   - `parser.py` parses homemade `Action: tool_name(...)` calls.
@@ -64,6 +65,7 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
   - model calls
 - Stream runs request cancellation if the browser disconnects mid-stream.
 - Run logs include token usage totals and a compact per-step trace.
+- Long runs compact older conversation history before model calls so recent context stays under the configured budget.
 - Observations are tagged as success, error, or blocked so the model can react more reliably.
 - CLI and web runs share model-result normalization and observation tagging through `backend/model_results.py`.
 - Stop requests are checked before tool execution, and approved pending tools are cleared before running.
@@ -159,14 +161,15 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 17. Done: Split stream event and trace helpers into `backend/stream_events.py`.
 18. Done: Split shared model-result normalization into `backend/model_results.py`.
 19. Done: Split shared trace compaction into `backend/trace_utils.py`.
-20. Done: Add frontend commands:
+20. Done: Add deterministic context-window compaction before model calls.
+21. Done: Add frontend commands:
    - Done: `/help`
    - Done: `/status`
    - Done: `/clear`
-21. Later add frontend tests for local commands, stream rendering, and approval controls.
-22. Later add persistent storage with SQLite or JSON so messages survive backend restarts.
-23. Later scope backend state by session/client before multi-user or class-hub use.
-24. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
+22. Later add frontend tests for local commands, stream rendering, and approval controls.
+23. Later add persistent storage with SQLite or JSON so messages survive backend restarts.
+24. Later scope backend state by session/client before multi-user or class-hub use.
+25. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
 
 ## Assignment Fit
 

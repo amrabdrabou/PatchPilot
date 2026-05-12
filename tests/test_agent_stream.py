@@ -53,6 +53,25 @@ def test_final_run_logs_token_usage_and_trace(monkeypatch):
     ]
 
 
+def test_stream_compacts_context_before_model_call(monkeypatch):
+    seen_messages = []
+
+    def fake_ask_model(messages):
+        seen_messages.append(messages)
+        return "Final Answer: compacted"
+
+    monkeypatch.setattr(agent_stream, "ask_model", fake_ask_model)
+    monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
+    monkeypatch.setattr(agent_stream, "MAX_CONTEXT_CHARS", 120)
+    monkeypatch.setattr(agent_stream, "CONTEXT_KEEP_RECENT_MESSAGES", 1)
+    monkeypatch.setattr(agent_stream, "MAX_CONTEXT_MESSAGE_CHARS", 40)
+
+    list(agent_stream.start_agent_stream("x" * 200, max_steps=1))
+
+    assert seen_messages[0][1]["content"].startswith("Context summary:")
+    assert len(seen_messages[0]) <= 3
+
+
 def test_step_limit_run_is_removed_from_active_runs(monkeypatch):
     monkeypatch.setattr(
         agent_stream,

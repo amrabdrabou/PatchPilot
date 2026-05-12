@@ -12,6 +12,7 @@ The backend runs a custom ReAct software-developer agent. It owns the model call
 - `backend_server.py` exposes the FastAPI API used by the frontend.
 - `agent_stream.py` runs the streaming ReAct loop for the web UI.
 - `agent.py` runs the CLI ReAct loop.
+- `context_window.py` compacts old conversation history before model calls.
 - `model_client.py` calls the LLM API.
 - `model_results.py` normalizes model results, token usage, observations, and stopped answers.
 - `prompts.py` defines PatchPilot's system prompt.
@@ -95,6 +96,7 @@ python main.py
 - CLI and web observation tagging and token usage accumulation share `model_results.py`.
 - Expected model, tool, subprocess, filesystem, and logging failures are handled with safe error messages.
 - Transient model API errors use a short retry/backoff before failing safely.
+- Long runs compact older conversation history before model calls to reduce context-length failures.
 - Run logs include token usage totals and compact per-step traces.
 - Observations are tagged as success, error, or blocked.
 - Stream endpoints request cancellation if a browser disconnects mid-run.
@@ -122,6 +124,9 @@ Edit `config.py` to change:
 - `MODEL_NAME`
 - `MODEL_MAX_RETRIES`
 - `MODEL_RETRY_BACKOFF_SECONDS`
+- `MAX_CONTEXT_CHARS`
+- `CONTEXT_KEEP_RECENT_MESSAGES`
+- `MAX_CONTEXT_MESSAGE_CHARS`
 - `MAX_STEPS`
 - `MAX_TOOL_CALLS`
 - `COMMAND_TIMEOUT_SECONDS`
@@ -199,4 +204,5 @@ Run backend tests with a project-local temp folder on Windows:
 15. Done: Split stream event formatting into `stream_events.py`.
 16. Done: Split shared model-result handling into `model_results.py`.
 17. Done: Split shared trace compaction into `trace_utils.py`.
-18. Later scope backend state by session/client before multi-user or class-hub use.
+18. Done: Add deterministic context-window compaction before model calls.
+19. Later scope backend state by session/client before multi-user or class-hub use.

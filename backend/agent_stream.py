@@ -6,6 +6,12 @@ from backend.model_results import (
     build_stopped_answer,
     normalize_model_result,
 )
+from backend.config import (
+    CONTEXT_KEEP_RECENT_MESSAGES,
+    MAX_CONTEXT_CHARS,
+    MAX_CONTEXT_MESSAGE_CHARS,
+)
+from backend.context_window import compact_messages_for_context
 from backend.parser import is_final_answer, parse_action
 from backend.run_logger import build_run_log_record, write_run_log
 from backend.run_state import (
@@ -141,6 +147,20 @@ def run_agent_until_pause(state):
         record_trace(state, "step", f"Step {state['step']}")
 
         try:
+            state["messages"], compacted_count = compact_messages_for_context(
+                state["messages"],
+                MAX_CONTEXT_CHARS,
+                CONTEXT_KEEP_RECENT_MESSAGES,
+                MAX_CONTEXT_MESSAGE_CHARS,
+            )
+
+            if compacted_count:
+                record_trace(
+                    state,
+                    "context_compaction",
+                    f"Compacted {compacted_count} older messages before model call.",
+                )
+
             assistant_message, usage = normalize_model_result(ask_model(state["messages"]))
             add_token_usage(state["token_usage"], usage)
             state["model_calls"] += 1

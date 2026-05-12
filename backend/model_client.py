@@ -86,11 +86,3 @@ def ask_model_result(messages):
         "content": response.choices[0].message.content,
         "usage": extract_token_usage(response),
     }
-
-
-def ask_model(messages):
-    """
-    Sends the conversation messages to the LLM
-    and returns the assistant's text response.
-    """
-    return ask_model_result(messages)["content"]
