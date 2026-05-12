@@ -165,7 +165,7 @@ def run_agent(user_task, max_steps=5, max_tool_calls=3):
                     try:
                         result = run_tool(tool_name, arguments)
                     except Exception as error:
-                        result = f"Tool execution failed safely: {type(error).__name__}."
+                        result = f"Error: Tool execution failed: {type(error).__name__}."
                     tool_calls += 1
                     tool_usage[tool_name] = tool_usage.get(tool_name, 0) + 1
 

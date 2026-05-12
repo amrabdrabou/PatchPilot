@@ -1,5 +1,6 @@
 # Verifies streamed run lifecycle, stopping, and active-run cleanup.
 import backend.agent_stream as agent_stream
+from backend.run_state import request_run_stop
 
 
 def setup_function():
@@ -164,7 +165,7 @@ def test_stop_request_stops_and_removes_run(monkeypatch):
     monkeypatch.setattr(agent_stream, "write_run_log", lambda record: None)
     state = agent_stream.create_run_state("stop me", max_steps=2, max_tool_calls=1)
 
-    assert agent_stream.request_stop_run(state["run_id"]) is True
+    assert request_run_stop(state["run_id"]) is True
 
     events = list(agent_stream.run_agent_until_pause(state))
 
@@ -191,7 +192,7 @@ def test_stop_before_tool_execution_does_not_run_tool(monkeypatch):
     tool_call = next(stream)
 
     assert tool_call["type"] == "tool_call"
-    agent_stream.request_stop_run(tool_call["run_id"])
+    request_run_stop(tool_call["run_id"])
 
     stopped_event = next(stream)
 
@@ -250,7 +251,7 @@ def test_stop_after_approval_decision_does_not_run_tool(monkeypatch):
     decision_event = next(approval_stream)
 
     assert decision_event["type"] == "approval_decision"
-    agent_stream.request_stop_run(approval_event["run_id"])
+    request_run_stop(approval_event["run_id"])
 
     stopped_event = next(approval_stream)
 
@@ -260,7 +261,7 @@ def test_stop_after_approval_decision_does_not_run_tool(monkeypatch):
 
 
 def test_stop_request_reports_missing_run():
-    assert agent_stream.request_stop_run("missing") is False
+    assert request_run_stop("missing") is False
 
 
 def test_model_error_stops_and_removes_run(monkeypatch):
@@ -273,7 +274,7 @@ def test_model_error_stops_and_removes_run(monkeypatch):
     events = list(agent_stream.start_agent_stream("fail", max_steps=2))
 
     assert events[-2]["type"] == "error"
-    assert events[-2]["content"] == "Model call failed safely: RuntimeError."
+    assert events[-2]["content"] == "Model call failed: RuntimeError."
     assert events[-1]["type"] == "stopped"
     assert agent_stream.ACTIVE_RUNS == {}
 

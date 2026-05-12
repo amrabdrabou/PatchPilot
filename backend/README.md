@@ -28,7 +28,6 @@ The backend runs a custom ReAct software-developer agent. It owns the model call
 ## API Routes
 
 - `GET /state` returns agents, messages, and configured limits.
-- `POST /messages` creates a manual message.
 - `POST /reset` clears messages and resets agent state.
 - `POST /run-agent-stream` starts a streamed PatchPilot run.
 - `POST /approve-tool` approves a pending tool call.
@@ -97,7 +96,7 @@ python main.py
 - Expected model, tool, subprocess, filesystem, and logging failures are handled with safe error messages.
 - Transient model API errors use a short retry/backoff before failing safely.
 - Long runs compact older conversation history before model calls to reduce context-length failures.
-- Run logs include token usage totals and compact per-step traces.
+- Run logs include token usage totals, context compaction counts, and compact per-step traces.
 - Observations are tagged as success, error, or blocked.
 - Stream endpoints request cancellation if a browser disconnects mid-run.
 - Stop requests are checked before tool execution, and approved pending tools are cleared before running.

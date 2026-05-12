@@ -1,6 +1,5 @@
 # Exposes the agent hub API and streaming endpoints.
 from copy import deepcopy
-from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,9 +9,9 @@ from backend.agent_stream import (
     start_agent_stream,
     approve_pending_tool,
     reject_pending_tool,
-    request_stop_run,
 )
 from backend.config import MAX_STEPS, MAX_TOOL_CALLS
+from backend.run_state import request_run_stop
 from backend.stream_events import format_sse
 
 app = FastAPI()
@@ -43,12 +42,9 @@ agents = deepcopy(DEFAULT_AGENTS)
 messages = []
 
 
-class MessageCreate(BaseModel):
-    agentId: str
-    text: str
-
 class AgentRunRequest(BaseModel):
     task: str
+
 
 class ApprovalRequest(BaseModel):
     run_id: str
@@ -74,23 +70,6 @@ def get_state():
     }
 
 
-@app.post("/messages")
-def create_message(message: MessageCreate):
-    """
-    Store a manual message from the frontend.
-    """
-    new_message = {
-        "id": len(messages) + 1,
-        "agentId": message.agentId,
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "text": message.text,
-    }
-
-    messages.append(new_message)
-
-    return new_message
-
-
 @app.post("/reset")
 def reset_all_messages():
     """
@@ -110,6 +89,7 @@ def reset_all_messages():
         },
     }
 
+
 async def stream_events_with_disconnect(request, events):
     """
     Yield SSE chunks and request run stop if the client disconnects.
@@ -122,7 +102,7 @@ async def stream_events_with_disconnect(request, events):
 
         if await request.is_disconnected():
             if active_run_id:
-                request_stop_run(active_run_id)
+                request_run_stop(active_run_id)
             break
 
         yield format_sse(event)
@@ -165,7 +145,7 @@ def stop_run_endpoint(request: StopRunRequest):
     """
     Request a running stream to stop at the next safe checkpoint.
     """
-    stopped = request_stop_run(request.run_id)
+    stopped = request_run_stop(request.run_id)
 
     return {
         "run_id": request.run_id,

@@ -139,6 +139,7 @@ When changing code:
 - Follow the existing project style.
 - Use best practices for the language, framework, and project architecture.
 - Split responsibilities into focused files or modules as much as is practical, especially for safety-sensitive code.
+- Clean up after every change by removing stale code, unused exports, dead branches, and outdated docs or tests related to the work.
 - Do not rewrite unrelated code.
 - Do not rename things unless needed.
 - Do not add new dependencies unless approved.

@@ -8,11 +8,11 @@ def test_stop_run_endpoint_reports_stop_request(monkeypatch):
     calls = []
     client = TestClient(backend_server.app)
 
-    def fake_request_stop_run(run_id):
+    def fake_request_run_stop(run_id):
         calls.append(run_id)
         return True
 
-    monkeypatch.setattr(backend_server, "request_stop_run", fake_request_stop_run)
+    monkeypatch.setattr(backend_server, "request_run_stop", fake_request_run_stop)
 
     response = client.post("/stop-run", json={"run_id": "run-1"})
 

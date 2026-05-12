@@ -73,9 +73,3 @@ def get_tool_descriptions():
 
     return "\n\n".join(descriptions)
 
-
-def get_available_tools():
-    """
-    Returns the list of available tool names.
-    """
-    return list(TOOLS.keys())

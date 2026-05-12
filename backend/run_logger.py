@@ -60,6 +60,13 @@ def write_run_log(record, log_file=RUN_LOG_FILE):
         file.write(json.dumps(record, sort_keys=True) + "\n")
 
 
+def count_context_compactions(trace):
+    """
+    Count context compaction trace entries for run summaries.
+    """
+    return sum(1 for entry in trace or [] if entry.get("type") == "context_compaction")
+
+
 def build_run_log_record(
     *,
     run_id,
@@ -76,10 +83,13 @@ def build_run_log_record(
     interface,
     token_usage=None,
     trace=None,
+    context_compactions=None,
 ):
     """
     Build a serializable summary of one completed or stopped run.
     """
+    trace_entries = trace or []
+
     return {
         "run_id": run_id,
         "task": task,
@@ -99,6 +109,11 @@ def build_run_log_record(
             "completion_tokens": 0,
             "total_tokens": 0,
         },
-        "trace": trace or [],
+        "trace": trace_entries,
+        "context_compactions": (
+            count_context_compactions(trace_entries)
+            if context_compactions is None
+            else context_compactions
+        ),
         "interface": interface,
     }

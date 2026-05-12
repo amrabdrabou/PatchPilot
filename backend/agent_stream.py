@@ -21,7 +21,6 @@ from backend.run_state import (
     create_pending_tool,
     create_run_state,
     get_run_state,
-    request_run_stop,
 )
 from backend.stream_events import (
     build_progress_payload,
@@ -165,7 +164,7 @@ def run_agent_until_pause(state):
             add_token_usage(state["token_usage"], usage)
             state["model_calls"] += 1
         except Exception as error:
-            message = f"Model call failed safely: {type(error).__name__}."
+            message = f"Model call failed: {type(error).__name__}."
             yield from fail_run_safely(state, message)
             return
 
@@ -302,7 +301,7 @@ def run_agent_until_pause(state):
         try:
             result = run_tool(tool_name, arguments)
         except Exception as error:
-            message = f"Tool execution failed safely: {type(error).__name__}."
+            message = f"Tool execution failed: {type(error).__name__}."
             yield from fail_run_safely(state, message)
             return
 
@@ -428,7 +427,7 @@ def approve_pending_tool(run_id, approval_id):
     try:
         result = run_tool(tool_name, arguments)
     except Exception as error:
-        message = f"Tool execution failed safely: {type(error).__name__}."
+        message = f"Tool execution failed: {type(error).__name__}."
         yield from fail_run_safely(state, message)
         return
 
@@ -537,10 +536,3 @@ def reject_pending_tool(run_id, approval_id):
             "tool_usage": state["tool_usage"],
         },
     )
-
-
-def request_stop_run(run_id):
-    """
-    Mark an active run so the stream loop stops at the next safe checkpoint.
-    """
-    return request_run_stop(run_id)

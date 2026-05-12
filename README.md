@@ -12,7 +12,8 @@ PatchPilot is a custom Python ReAct software-developer agent with a React contro
 - Requires frontend approval before file edits or shell commands.
 - Shows live run progress in the UI: status, steps, tool calls, and model calls.
 - Supports stopping web runs at safe checkpoints.
-- Logs token usage and compact per-step traces for completed, stopped, rejected, and handled-error runs.
+- Supports multi-line task drafts with a client-side length cap.
+- Logs token usage, context compaction counts, and compact per-step traces for completed, stopped, rejected, and handled-error runs.
 - Retries transient model API failures before failing safely.
 - Keeps active stream run state in a focused backend module.
 - Shares model-result handling, stream event formatting, and trace compaction through focused backend helpers.
@@ -145,7 +146,7 @@ Do not share the output of `docker compose config`; Docker may expand values fro
 
 - Command requests are written to `logs/commands.log`.
 - Completed, stopped, rejected, and handled-error UI/CLI runs are written to `logs/runs.jsonl`.
-- Run logs include task, final answer, step/tool/model counts, token usage, tool usage, and compact trace entries.
+- Run logs include task, final answer, step/tool/model counts, token usage, tool usage, context compaction counts, and compact trace entries.
 
 ## Verify
 
@@ -168,10 +169,20 @@ Frontend checks:
 ```bash
 cd frontend
 npm.cmd run lint
+npm.cmd run test
 npm.cmd run build
 ```
 
+`npm.cmd run test` runs the Vitest frontend tests.
+
 `npm.cmd run build` runs the Vite production build and writes generated files to `frontend/dist/`.
+
+## CI
+
+GitHub Actions runs backend and frontend checks on pushes and pull requests:
+
+- Backend: install `requirements.txt`, compile `backend/`, and run `pytest`.
+- Frontend: run `npm ci`, lint, Vitest tests, and Vite build.
 
 ## Next Steps
 
@@ -182,7 +193,10 @@ npm.cmd run build
 5. Done: Add stop endpoint, active-run cleanup, tagged observations, token usage logging, compact traces, disconnect cancellation, and transient model retry/backoff.
 6. Done: Split active run state, stream event formatting, model-result handling, and trace compaction into focused backend modules.
 7. Done: Add deterministic context-window compaction before model calls.
-8. Later add frontend tests for local commands, stream rendering, and approval controls.
-9. Later add persistent storage so messages survive backend restarts.
-10. Later scope backend state by session/client before multi-user or class-hub use.
-11. Later add the class-hub integration layer for shared agent communication.
+8. Done: Add frontend tests for local command, SSE stream reader, approval control, and stream rendering utilities/components.
+9. Done: Split frontend stream reading, local commands, message state, and progress state into focused helpers/hooks.
+10. Done: Add frontend hook-level tests for `useAgentHub`.
+11. Done: Add GitHub Actions CI for backend and frontend checks.
+12. Later add persistent storage so messages survive backend restarts.
+13. Later scope backend state by session/client before multi-user or class-hub use.
+14. Later add the class-hub integration layer for shared agent communication.

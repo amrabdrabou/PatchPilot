@@ -6,6 +6,7 @@ This folder contains the Vite/React control UI for PatchPilot.
 The UI handles:
 
 - task input
+- multi-line task drafts with a client-side length cap
 - live streamed ReAct steps
 - collapsible step groups
 - separate final answers
@@ -15,6 +16,12 @@ The UI handles:
 - `/clear`
 - `/help`
 - `/status`
+
+The main hub hook is split by responsibility:
+
+- `hooks/useAgentHub.js` orchestrates backend calls, approvals, and stream handling.
+- `hooks/useAgentMessages.js` owns local message creation and trace-message updates.
+- `hooks/useRunProgress.js` owns stream progress and run-limit state.
 
 Run from this folder:
 
@@ -36,10 +43,10 @@ npm.cmd run test
 npm.cmd run build
 ```
 
-`npm.cmd run test` uses Vitest. The current tests cover pure frontend utilities; React component and hook tests should use Vitest with React Testing Library.
+`npm.cmd run test` uses Vitest. The current tests cover pure frontend utilities, approval and stream rendering components, and the main hub hook.
 
 `npm.cmd run build` runs the Vite production build and writes generated files to `dist/`.
 
 ## Later Tests
 
-Later add frontend tests for stream rendering and approval controls.
+Later add broader end-to-end UI tests around complete browser workflows.

@@ -40,7 +40,9 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 - `frontend/` contains the Vite/React interface:
   - `App.jsx` composes the page.
   - `api/agentApi.js` contains backend HTTP calls.
-  - `hooks/useAgentHub.js` owns UI state, `/clear`, approvals, and progress.
+  - `hooks/useAgentHub.js` orchestrates backend calls, `/clear`, approvals, and stream handling.
+  - `hooks/useAgentMessages.js` owns local message creation and trace-message updates.
+  - `hooks/useRunProgress.js` owns stream progress and run-limit state.
   - `utils/agentStream.js` formats stream events and final answers.
   - `utils/localCommands.js` owns local slash-command responses.
   - `utils/readAgentStream.js` reads backend SSE chunks and dispatches parsed stream events.
@@ -60,13 +62,14 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 - The message stream auto-scrolls to new output.
 - `/clear` clears messages instead of being sent to the model.
 - `/help` and `/status` are handled locally instead of being sent to the model.
+- Task drafting uses a multi-line textarea with a client-side length cap.
 - The UI shows real run progress:
   - status
   - steps used / max steps
   - tool calls used / max tool calls
   - model calls
 - Stream runs request cancellation if the browser disconnects mid-stream.
-- Run logs include token usage totals and a compact per-step trace.
+- Run logs include token usage totals, context compaction counts, and a compact per-step trace.
 - Long runs compact older conversation history before model calls so recent context stays under the configured budget.
 - Observations are tagged as success, error, or blocked so the model can react more reliably.
 - CLI and web runs share model-result normalization and observation tagging through `backend/model_results.py`.
@@ -85,6 +88,7 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 - Stream event payload and trace helpers are centralized in `backend/stream_events.py`.
 - CLI and web trace compaction share `backend/trace_utils.py`.
 - Transient model API errors use a short retry/backoff before the run fails safely.
+- GitHub Actions runs backend and frontend checks on pushes and pull requests.
 - Docker Compose bind-mounts `backend/`, `frontend/`, `logs/`, and `test_project/`.
 - The backend Docker image installs `git`, and Compose mounts `.git` read-only so `git_diff` and `git_status` can inspect sandbox changes.
 - Backend/frontend source edits usually need a container restart, not an image rebuild; dependency or Dockerfile changes still need rebuilds.
@@ -170,11 +174,13 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
    - Done: `/clear`
 22. Done: Split frontend SSE stream reading out of `useAgentHub.js`.
 23. Done: Split local slash-command responses out of `useAgentHub.js`.
-24. Done: Add Vitest frontend tests for local command and SSE stream reader utilities.
-25. Later add frontend tests for stream rendering and approval controls.
-26. Later add persistent storage with SQLite or JSON so messages survive backend restarts.
-27. Later scope backend state by session/client before multi-user or class-hub use.
-28. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
+24. Done: Add Vitest frontend tests for local command, SSE stream reader, approval control, and stream rendering utilities/components.
+25. Done: Split frontend message and progress state out of `useAgentHub.js`.
+26. Done: Add frontend hook-level tests for `useAgentHub`.
+27. Done: Add GitHub Actions CI for backend and frontend checks.
+28. Later add persistent storage with SQLite or JSON so messages survive backend restarts.
+29. Later scope backend state by session/client before multi-user or class-hub use.
+30. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
 
 ## Assignment Fit
 

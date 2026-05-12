@@ -24,6 +24,12 @@ def test_write_run_log_appends_json_line(tmp_path):
         tool_calls=1,
         max_tool_calls=8,
         tool_usage={"read_file": 1},
+        trace=[
+            {
+                "type": "context_compaction",
+                "content": "Compacted 2 older messages before model call.",
+            }
+        ],
         interface="web",
     )
 
@@ -42,6 +48,12 @@ def test_write_run_log_appends_json_line(tmp_path):
         "completion_tokens": 0,
         "total_tokens": 0,
     }
-    assert saved["trace"] == []
+    assert saved["trace"] == [
+        {
+            "type": "context_compaction",
+            "content": "Compacted 2 older messages before model call.",
+        }
+    ]
+    assert saved["context_compactions"] == 1
     assert saved["interface"] == "web"
     assert "ended_at" in saved
