@@ -64,6 +64,142 @@ def test_run_agent_stream_rejects_empty_task():
     assert response.status_code == 422
 
 
+def test_list_conversations_endpoint(monkeypatch):
+    client = TestClient(backend_server.app)
+    summaries = [{"id": "conv-1", "title": "First", "message_count": 2}]
+    monkeypatch.setattr(
+        backend_server,
+        "list_conversation_summaries",
+        lambda: summaries,
+    )
+
+    response = client.get("/conversations")
+
+    assert response.status_code == 200
+    assert response.json() == {"conversations": summaries}
+
+
+def test_load_conversation_endpoint_sets_current_messages(monkeypatch):
+    client = TestClient(backend_server.app)
+    saved_messages = [{"agentId": "user", "text": "hello", "type": "user_task"}]
+    conversation = {
+        "id": "conv-1",
+        "title": "hello",
+        "messages": saved_messages,
+    }
+    monkeypatch.setattr(
+        backend_server,
+        "get_conversation",
+        lambda conversation_id: conversation if conversation_id == "conv-1" else None,
+    )
+
+    response = client.get("/conversations/conv-1")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["conversation"] == conversation
+    assert data["messages"] == saved_messages
+    assert backend_server.messages == saved_messages
+
+
+def test_load_conversation_endpoint_reports_missing(monkeypatch):
+    client = TestClient(backend_server.app)
+    monkeypatch.setattr(backend_server, "get_conversation", lambda conversation_id: None)
+
+    response = client.get("/conversations/missing")
+
+    assert response.status_code == 404
+
+
+def test_archive_current_conversation_saves_messages_and_clears_state(monkeypatch):
+    client = TestClient(backend_server.app)
+    saved_calls = []
+    summaries = [{"id": "conv-1", "title": "Saved", "message_count": 1}]
+    archived = {
+        "id": "conv-1",
+        "title": "Saved",
+        "messages": [{"agentId": "user", "text": "Save me", "type": "user_task"}],
+    }
+
+    def fake_save_conversation(messages):
+        saved_calls.append(messages)
+        return archived
+
+    monkeypatch.setattr(backend_server, "save_conversation", fake_save_conversation)
+    monkeypatch.setattr(
+        backend_server,
+        "list_conversation_summaries",
+        lambda: summaries,
+    )
+    backend_server.messages = [{"agentId": "user", "text": "old"}]
+
+    response = client.post(
+        "/conversations/archive-current",
+        json={"messages": archived["messages"]},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert saved_calls == [archived["messages"]]
+    assert backend_server.messages == []
+    assert data["messages"] == []
+    assert data["archived_conversation"] == archived
+    assert data["conversations"] == summaries
+
+
+def test_archive_current_conversation_skips_empty_messages(monkeypatch):
+    client = TestClient(backend_server.app)
+    monkeypatch.setattr(
+        backend_server,
+        "save_conversation",
+        lambda messages: (_ for _ in ()).throw(AssertionError("should not save")),
+    )
+    monkeypatch.setattr(
+        backend_server,
+        "list_conversation_summaries",
+        lambda: [],
+    )
+
+    response = client.post("/conversations/archive-current", json={"messages": []})
+
+    assert response.status_code == 200
+    assert response.json()["archived_conversation"] is None
+
+
+def test_delete_conversation_endpoint(monkeypatch):
+    client = TestClient(backend_server.app)
+    delete_calls = []
+    monkeypatch.setattr(
+        backend_server,
+        "delete_conversation",
+        lambda conversation_id: delete_calls.append(conversation_id) or True,
+    )
+    monkeypatch.setattr(
+        backend_server,
+        "list_conversation_summaries",
+        lambda: [],
+    )
+
+    response = client.delete("/conversations/conv-1")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "deleted": True,
+        "conversation_id": "conv-1",
+        "conversations": [],
+    }
+    assert delete_calls == ["conv-1"]
+
+
+def test_delete_conversation_endpoint_reports_missing(monkeypatch):
+    client = TestClient(backend_server.app)
+    monkeypatch.setattr(backend_server, "delete_conversation", lambda conversation_id: False)
+
+    response = client.delete("/conversations/missing")
+
+    assert response.status_code == 404
+
+
 class _FakeRequest:
     """Minimal Request stub for stream_events_with_disconnect tests."""
 

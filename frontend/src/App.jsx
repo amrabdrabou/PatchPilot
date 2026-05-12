@@ -10,6 +10,7 @@ function App() {
     agentRunning,
     agents,
     agentMap,
+    conversations,
     draft,
     messages,
     pendingApproval,
@@ -19,6 +20,7 @@ function App() {
     totalMessages,
     approveTool,
     rejectTool,
+    loadSavedConversation,
     resetAllMessages,
     sendMessage,
     stopRun,
@@ -31,10 +33,12 @@ function App() {
       <div className="flex h-screen">
         <AgentSidebar
           agents={agents}
+          conversations={conversations}
           messages={messages}
           progress={progress}
           selectedAgentId={selectedAgentId}
           onReset={resetAllMessages}
+          onSelectConversation={loadSavedConversation}
           onSelectAgent={setSelectedAgentId}
         />
 

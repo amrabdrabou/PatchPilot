@@ -1,10 +1,12 @@
 // Lists available agents and their local message counts.
 function AgentSidebar({
   agents,
+  conversations,
   messages,
   progress,
   selectedAgentId,
   onReset,
+  onSelectConversation,
   onSelectAgent,
 }) {
   return (
@@ -57,6 +59,36 @@ function AgentSidebar({
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 font-mono text-[11px] font-medium uppercase tracking-widest text-[#bac9cc]/40">
+              Conversations
+            </div>
+
+            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+              {conversations.length === 0 ? (
+                <div className="border-l border-transparent px-3 py-1 font-mono text-[11px] uppercase tracking-widest text-[#bac9cc]/30">
+                  No saved conversations
+                </div>
+              ) : (
+                conversations.map((conversation) => (
+                  <button
+                    key={conversation.id}
+                    onClick={() => onSelectConversation(conversation.id)}
+                    className="group w-full border-l border-transparent px-3 py-1 text-left opacity-70 transition hover:border-[#3b494c] hover:opacity-100"
+                  >
+                    <div className="truncate font-mono text-xs font-medium uppercase tracking-widest text-[#dce3f0]">
+                      {conversation.title}
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-widest text-[#bac9cc]/35">
+                      <span>{conversation.message_count} msgs</span>
+                      <span>{conversation.updated_at ?? ""}</span>
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </nav>

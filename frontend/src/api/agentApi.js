@@ -21,6 +21,16 @@ function postJson(path, body) {
   });
 }
 
+async function postJsonResult(path, body) {
+  const response = await postJson(path, body);
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export function getState() {
   return fetchJson("/state");
 }
@@ -56,5 +66,23 @@ export function stopAgentRun(runId) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ run_id: runId }),
+  });
+}
+
+export function listConversations() {
+  return fetchJson("/conversations");
+}
+
+export function loadConversation(conversationId) {
+  return fetchJson(`/conversations/${conversationId}`);
+}
+
+export function archiveCurrentConversation(messages) {
+  return postJsonResult("/conversations/archive-current", { messages });
+}
+
+export function deleteConversation(conversationId) {
+  return fetchJson(`/conversations/${conversationId}`, {
+    method: "DELETE",
   });
 }

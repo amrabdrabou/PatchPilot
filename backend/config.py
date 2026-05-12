@@ -26,3 +26,5 @@ PROJECT_DIR = REPO_ROOT / "test_project"
 COMMAND_LOG_FILE = REPO_ROOT / "logs" / "commands.log"
 
 RUN_LOG_FILE = REPO_ROOT / "logs" / "runs.jsonl"
+
+CONVERSATION_STORE_FILE = REPO_ROOT / "data" / "conversations.json"

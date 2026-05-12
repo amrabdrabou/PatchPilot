@@ -15,6 +15,9 @@ venv/
 logs/
 backend/logs/
 
+# Local app data
+data/conversations.json
+
 # Frontend dependencies and build output
 frontend/node_modules/
 frontend/dist/

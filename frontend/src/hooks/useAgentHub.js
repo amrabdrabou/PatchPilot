@@ -1,8 +1,11 @@
 // Orchestrates agent hub state, backend calls, approvals, and stream handling.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  archiveCurrentConversation,
   approveToolCall,
   getState,
+  listConversations,
+  loadConversation,
   rejectToolCall,
   resetMessages,
   startAgentRun,
@@ -19,6 +22,7 @@ export function useAgentHub() {
   const [pendingApproval, setPendingApproval] = useState(null);
   const [agents, setAgents] = useState([]);
   const [selectedAgentId, setSelectedAgentId] = useState("");
+  const [conversations, setConversations] = useState([]);
   const [draft, setDraft] = useState("");
   const [status, setStatus] = useState("Loading...");
   const [currentRunId, setCurrentRunId] = useState(null);
@@ -44,6 +48,12 @@ export function useAgentHub() {
   }, [agents]);
 
   const totalMessages = messages.length;
+
+  const refreshConversations = useCallback(async () => {
+    const data = await listConversations();
+
+    setConversations(data.conversations ?? []);
+  }, []);
 
   const streamHandlers = useMemo(
     () => ({
@@ -76,17 +86,18 @@ export function useAgentHub() {
       setRunProgress(EMPTY_PROGRESS);
 
       try {
-        const data = await resetMessages();
+        const data = await archiveCurrentConversation(messages);
 
         setAgents(data.agents);
         setMessages(data.messages);
         setLimits(data.limits ?? EMPTY_LIMITS);
+        setConversations(data.conversations ?? []);
         setSelectedAgentId(data.agents[0]?.id ?? "");
-        setStatus("Messages cleared");
+        setStatus(data.archived_conversation ? "Conversation archived" : "Messages cleared");
       } catch (error) {
         console.error(error);
         setMessages([]);
-        setStatus("Messages cleared locally");
+        setStatus("Messages cleared locally; archive failed");
       }
 
       return;
@@ -141,7 +152,7 @@ export function useAgentHub() {
     agentRunning,
     draft,
     limits,
-    messages.length,
+    messages,
     pendingApproval,
     readAgentResponse,
     runProgress,
@@ -160,6 +171,7 @@ export function useAgentHub() {
       setMessages(data.messages);
       setLimits(data.limits ?? EMPTY_LIMITS);
       setRunProgress(EMPTY_PROGRESS);
+      await refreshConversations();
       setSelectedAgentId(data.agents[0]?.id ?? "");
       setDraft("");
       setPendingApproval(null);
@@ -167,6 +179,25 @@ export function useAgentHub() {
       setStatus("Messages reset");
     } catch (error) {
       setStatus("Failed to reset messages");
+      console.error(error);
+    }
+  }, [refreshConversations, setLimits, setMessages, setRunProgress]);
+
+  const loadSavedConversation = useCallback(async (conversationId) => {
+    try {
+      const data = await loadConversation(conversationId);
+
+      setAgents(data.agents);
+      setMessages(data.messages);
+      setLimits(data.limits ?? EMPTY_LIMITS);
+      setRunProgress(EMPTY_PROGRESS);
+      setSelectedAgentId(data.agents[0]?.id ?? "");
+      setDraft("");
+      setPendingApproval(null);
+      setCurrentRunId(null);
+      setStatus("Conversation loaded");
+    } catch (error) {
+      setStatus("Failed to load conversation");
       console.error(error);
     }
   }, [setLimits, setMessages, setRunProgress]);
@@ -247,6 +278,7 @@ export function useAgentHub() {
         setMessages(data.messages);
         setLimits(data.limits ?? EMPTY_LIMITS);
         setSelectedAgentId(data.agents[0]?.id ?? "");
+        await refreshConversations();
         setStatus("Connected to backend");
       } catch (error) {
         if (ignoreResult) return;
@@ -261,12 +293,13 @@ export function useAgentHub() {
     return () => {
       ignoreResult = true;
     };
-  }, [setLimits, setMessages]);
+  }, [refreshConversations, setLimits, setMessages]);
 
   return {
     agentRunning,
     agents,
     agentMap,
+    conversations,
     draft,
     messages,
     pendingApproval,
@@ -276,6 +309,7 @@ export function useAgentHub() {
     totalMessages,
     approveTool,
     rejectTool,
+    loadSavedConversation,
     resetAllMessages,
     sendMessage,
     stopRun,

@@ -1,7 +1,7 @@
 # Exposes the agent hub API and streaming endpoints.
 from copy import deepcopy
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from fastapi.responses import StreamingResponse
@@ -12,6 +12,12 @@ from backend.agent_stream import (
     reject_pending_tool,
 )
 from backend.config import MAX_STEPS, MAX_TASK_LENGTH, MAX_TOOL_CALLS
+from backend.conversation_store import (
+    delete_conversation,
+    get_conversation,
+    list_conversation_summaries,
+    save_conversation,
+)
 from backend.run_state import request_run_stop
 from backend.stream_events import format_sse
 
@@ -56,8 +62,11 @@ class StopRunRequest(BaseModel):
     run_id: str
 
 
-@app.get("/state")
-def get_state():
+class ArchiveConversationRequest(BaseModel):
+    messages: list[dict] = Field(default_factory=list)
+
+
+def build_state_payload():
     """
     Return current UI state and configured run limits.
     """
@@ -71,6 +80,14 @@ def get_state():
     }
 
 
+@app.get("/state")
+def get_state():
+    """
+    Return current UI state and configured run limits.
+    """
+    return build_state_payload()
+
+
 @app.post("/reset")
 def reset_all_messages():
     """
@@ -81,13 +98,74 @@ def reset_all_messages():
     agents = deepcopy(DEFAULT_AGENTS)
     messages = []
 
+    return build_state_payload()
+
+
+@app.get("/conversations")
+def list_saved_conversations():
+    """
+    Return saved conversation summaries for the left panel.
+    """
     return {
-        "agents": agents,
-        "messages": messages,
-        "limits": {
-            "maxSteps": MAX_STEPS,
-            "maxToolCalls": MAX_TOOL_CALLS,
-        },
+        "conversations": list_conversation_summaries(),
+    }
+
+
+@app.get("/conversations/{conversation_id}")
+def load_saved_conversation(conversation_id: str):
+    """
+    Load one saved conversation into the current UI state.
+    """
+    global messages
+
+    conversation = get_conversation(conversation_id)
+
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+
+    messages = deepcopy(conversation.get("messages", []))
+
+    return {
+        **build_state_payload(),
+        "conversation": conversation,
+    }
+
+
+@app.post("/conversations/archive-current")
+def archive_current_conversation(body: ArchiveConversationRequest):
+    """
+    Save the current UI message stream, then clear the current stream.
+    """
+    global messages
+
+    archived_conversation = None
+
+    if body.messages:
+        archived_conversation = save_conversation(body.messages)
+
+    messages = []
+
+    return {
+        **build_state_payload(),
+        "archived_conversation": archived_conversation,
+        "conversations": list_conversation_summaries(),
+    }
+
+
+@app.delete("/conversations/{conversation_id}")
+def delete_saved_conversation(conversation_id: str):
+    """
+    Remove one saved conversation.
+    """
+    deleted = delete_conversation(conversation_id)
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+
+    return {
+        "deleted": True,
+        "conversation_id": conversation_id,
+        "conversations": list_conversation_summaries(),
     }
 
 

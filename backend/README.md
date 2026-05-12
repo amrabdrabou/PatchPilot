@@ -21,6 +21,7 @@ The backend runs a custom ReAct software-developer agent. It owns the model call
 - `run_state.py` owns active web-run state, cancellation flags, pending approvals, and cleanup.
 - `stream_events.py` builds stream event payloads and SSE chunks.
 - `trace_utils.py` builds shared compact trace entries for CLI and web run logs.
+- `conversation_store.py` stores saved UI conversations in `data/conversations.json`.
 - `tool_registry.py` maps tool names to Python functions.
 - `tools/` contains focused modules for safety checks, file tools, command execution, and git inspection.
 - `config.py` stores model, step, tool, command, and sandbox limits.
@@ -33,6 +34,10 @@ The backend runs a custom ReAct software-developer agent. It owns the model call
 - `POST /approve-tool` approves a pending tool call.
 - `POST /stop-run` requests a running stream to stop.
 - `POST /reject-tool` rejects a pending tool call.
+- `GET /conversations` lists saved conversation summaries.
+- `GET /conversations/{conversation_id}` loads one saved conversation into the current UI state.
+- `POST /conversations/archive-current` saves the current UI message stream and clears it.
+- `DELETE /conversations/{conversation_id}` removes one saved conversation.
 
 ## ReAct Flow
 
@@ -133,6 +138,7 @@ Edit `config.py` to change:
 - `PROJECT_DIR`
 - `COMMAND_LOG_FILE`
 - `RUN_LOG_FILE`
+- `CONVERSATION_STORE_FILE`
 
 Secrets should live in the project root `.env` file:
 
@@ -204,4 +210,5 @@ Run backend tests with a project-local temp folder on Windows:
 16. Done: Split shared model-result handling into `model_results.py`.
 17. Done: Split shared trace compaction into `trace_utils.py`.
 18. Done: Add deterministic context-window compaction before model calls.
-19. Later scope backend state by session/client before multi-user or class-hub use.
+19. Done: Add JSON-backed saved conversation storage and conversation API endpoints.
+20. Later scope backend state by session/client before multi-user or class-hub use.

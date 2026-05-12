@@ -30,6 +30,7 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
   - `run_state.py` owns active web-run state, cancellation flags, pending approvals, and cleanup.
   - `stream_events.py` builds stream event payloads and compact trace entries.
   - `trace_utils.py` builds shared compact trace entries for CLI and web run logs.
+  - `conversation_store.py` provides JSON storage helpers for planned saved conversation history.
   - `tool_registry.py` maps tool names to Python functions.
   - `tools/` contains focused runtime tool modules:
     - `safety.py` handles sandbox paths and command allowlists.
@@ -49,6 +50,7 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
   - `utils/messages.js` handles local message IDs and timestamps.
   - `components/` contains focused UI sections.
 - `test_project/` is the sandbox folder PatchPilot can inspect and modify.
+- `data/` will hold local app data such as saved conversations. Conversation history should be ignored by git and later replaced by SQLite when the project needs stronger persistence.
 - `.env` stores local secrets and must stay untracked.
 
 ## Current Behavior
@@ -60,7 +62,8 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 - Running web runs can be stopped by the user at the next safe checkpoint.
 - When the run finishes, steps collapse and the final answer appears separately in white text.
 - The message stream auto-scrolls to new output.
-- `/clear` clears messages instead of being sent to the model.
+- Saved conversation summaries appear in the left panel and can be loaded back into the message stream.
+- `/clear` is handled locally instead of being sent to the model; it archives the current message stream and then clears the visible stream.
 - `/help` and `/status` are handled locally instead of being sent to the model.
 - Task drafting uses a multi-line textarea with a client-side length cap.
 - The backend `AgentRunRequest` model rejects empty or oversized tasks with HTTP 422 before any run state is created, mirroring the frontend `MAX_DRAFT_LENGTH` via `MAX_TASK_LENGTH` in `backend/config.py`.
@@ -115,6 +118,23 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 - Multiple browser tabs or users can share message history, run state, and approval state.
 - This is acceptable for the current local Del 1 workflow, but it is not multi-user safe.
 - Before class-hub integration, state should be scoped by session/client or moved into a persistent store with explicit ownership.
+
+## Planned Conversation History
+
+- Add user-facing conversation history before multi-user session work.
+- Store saved conversations first in `data/conversations.json` through a focused `backend/conversation_store.py` module.
+- Keep `logs/` for audit/debug output only; saved conversations are app data, not logs.
+- Ignore saved conversation data in git so private local chat history is not committed.
+- Design the store API so JSON can later be replaced with SQLite without rewriting server and frontend flows.
+- Add backend endpoints:
+  - Done: `GET /conversations` returns saved conversation summaries for the left panel.
+  - Done: `GET /conversations/{conversation_id}` loads one saved conversation.
+  - Done: `POST /conversations/archive-current` saves the current UI message stream as a conversation and clears the current stream.
+  - Done: `DELETE /conversations/{conversation_id}` removes one saved conversation.
+- Keep `POST /reset` as the discard path: it clears the current UI/run state without saving a conversation.
+- `/clear` should archive the current conversation first, then clear the current stream.
+- The left panel should show saved conversation summaries and let the user reload one into the message stream.
+- Implementation details are tracked in Best Next Steps item 34 so the roadmap stays the single source for upcoming work.
 
 ## Safety Rules
 
@@ -191,9 +211,18 @@ PatchPilot must keep its own Python ReAct loop, homemade action parser, controll
 31. Done: Iterate the agent's blocking event generator in a threadpool so `/stop-run` and disconnect detection stay responsive while the model or a tool is mid-call.
 32. Done: Enforce a server-side `MAX_TASK_LENGTH` (and reject empty tasks) on `/run-agent-stream` so direct API clients cannot bypass the frontend textarea cap.
 33. Done: Make the retry backoff sleep in `ask_model_result` interruptible so `/stop-run` fires during a transient-error retry sequence without waiting for the full backoff.
-34. Later add persistent storage with SQLite or JSON so messages survive backend restarts.
-35. Later scope backend state by session/client before multi-user or class-hub use.
-36. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
+34. Done: Add JSON-backed saved conversation history in `data/conversations.json`, with API endpoints and left-panel loading:
+   - Done: Add `backend/conversation_store.py` for JSON storage, safe empty/corrupt-file handling, title derivation, and `id` / `title` / `created_at` / `updated_at` / `messages` records.
+   - Done: Add `GET /conversations`, `GET /conversations/{conversation_id}`, `POST /conversations/archive-current`, and `DELETE /conversations/{conversation_id}`.
+   - Done: Keep `POST /reset` discard-only, while `/clear` archives current messages before clearing the visible stream.
+   - Done: Add frontend API helpers for list, load, archive, and delete conversation requests.
+   - Done: Add frontend conversation list state, left-panel summaries, and conversation loading.
+   - Done: Add `tests/test_conversation_store.py`, extend backend endpoint tests, and add frontend tests for `/clear` archive behavior and left-panel loading.
+   - Done: Update `README.md`, `frontend/README.md`, and this guide.
+35. Later add a saved-conversation delete control in the frontend.
+36. Later migrate conversation storage from JSON to SQLite when persistence needs grow.
+37. Later scope backend state by session/client before multi-user or class-hub use.
+38. Later prepare a class-hub integration layer for agent registration, shared message format, and task handoff.
 
 ## Assignment Fit
 
