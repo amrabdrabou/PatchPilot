@@ -8,8 +8,6 @@ from backend.config import MODEL_MAX_RETRIES, MODEL_NAME, MODEL_RETRY_BACKOFF_SE
 
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 TRANSIENT_ERROR_NAMES = {
     "APIConnectionError",
     "APITimeoutError",
@@ -17,6 +15,13 @@ TRANSIENT_ERROR_NAMES = {
     "RateLimitError",
 }
 TRANSIENT_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
+
+
+def get_client():
+    """
+    Create the OpenAI client only when a model call is actually made.
+    """
+    return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def is_transient_model_error(error):
@@ -66,7 +71,7 @@ def ask_model_result(messages):
 
     for attempt in range(1, MODEL_MAX_RETRIES + 2):
         try:
-            response = client.chat.completions.create(
+            response = get_client().chat.completions.create(
                 model=MODEL_NAME,
                 messages=messages,
                 temperature=0,

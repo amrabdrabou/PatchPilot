@@ -43,7 +43,10 @@ def test_ask_model_result_retries_transient_errors(monkeypatch):
 
         return result
 
-    monkeypatch.setattr(model_client.client.chat.completions, "create", fake_create)
+    fake_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    )
+    monkeypatch.setattr(model_client, "get_client", lambda: fake_client)
     monkeypatch.setattr(model_client.time, "sleep", sleeps.append)
 
     result = model_client.ask_model_result([{"role": "user", "content": "hi"}])
@@ -67,7 +70,10 @@ def test_ask_model_result_does_not_retry_permanent_errors(monkeypatch):
         calls.append(kwargs)
         raise FakePermanentError("bad request")
 
-    monkeypatch.setattr(model_client.client.chat.completions, "create", fake_create)
+    fake_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    )
+    monkeypatch.setattr(model_client, "get_client", lambda: fake_client)
     monkeypatch.setattr(model_client.time, "sleep", lambda delay: None)
 
     with pytest.raises(FakePermanentError):
@@ -83,7 +89,10 @@ def test_ask_model_result_stops_after_retry_limit(monkeypatch):
         calls.append(kwargs)
         raise FakeTransientError("still limited")
 
-    monkeypatch.setattr(model_client.client.chat.completions, "create", fake_create)
+    fake_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    )
+    monkeypatch.setattr(model_client, "get_client", lambda: fake_client)
     monkeypatch.setattr(model_client.time, "sleep", lambda delay: None)
 
     with pytest.raises(FakeTransientError):
